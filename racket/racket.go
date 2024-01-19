@@ -1,35 +1,15 @@
 package racket
 
-import (
-	"strings"
-)
-
-//go:generate stringer -type=TokenType
-type TokenType int
-
-const (
-	ttString TokenType = iota
-	ttPound
-	ttPipe
-	ttQuote
-	ttSemi
-	ttEscape
-	ttParenL
-	ttParenR
-	ttBracketL
-	ttBracketR
-	ttBraceL
-	ttBraceR
-	ttLf
-	ttWhiteSpace
-	ttOther
-)
-
-type Pos = int
-type Token struct {
-	beg Pos
-	end Pos
-	typ TokenType
+// to get the text you'll have to trim the opening #| and closing |# for block
+// comments. for line comments
+type Comment struct {
+	// if it's a block comment
+	IsBlockComment bool
+	Beg            int
+	End            int
+	LineNum        int
+	CharNum        int
+	KnownIndent    []byte
 }
 
 //go:generate stringer -type=DiagnosticLevel
@@ -40,29 +20,59 @@ const (
 	DlWarn
 	DlFatal
 )
-
 type Diagnostic struct {
 	Level DiagnosticLevel
-	Beg   Pos
-	End   Pos
+	Beg   int
+	End   int
 	Msg   string
 }
 
-func isControlChar(b byte) bool {
-	return b < '!' || b == 127
-}
-
-func Tokenize(s []byte) (good bool, out []Token, diags []Diagnostic) {
-	// i is the current position and also the new "end" when committing tokens
-	var i Pos
-tokenLoop:
+func Comments(s []byte) (good bool, comments []Comment, diags []Diagnostic) {
+	i := 0
+	// lineCounter specific variables
+	lineCounter := 0
+	lastLf := 0
+	shouldIndent := true
+	indentSoFar := make([]byte, 0)
+	nextLine := func() {
+		lastLf = i
+		lineCounter += 1
+		indentSoFar = make([]byte, 0)
+		shouldIndent = true
+		i += 1
+	}
 	for i < len(s) {
 		beg := i
-		var typ TokenType
-		if s[i] == '"' {
+		begCharNum := beg - lastLf
+		c := s[i]
+		switch c {
+		case '\n':
+			nextLine()
+		case '	', ' ':
+			// keep track of the current indent
+			// indents can only consist of tabs and spaces and this branch sees
+			// them all.
+			var prev byte
+			prevIdx := i - 1
+			if prevIdx < 0 {
+				prev = '\n'
+			} else {
+				prev = s[prevIdx]
+			}
 			i += 1
-			typ = ttString
+			if shouldIndent {
+				switch prev {
+				case '\n', '	', ' ':
+					indentSoFar = append(indentSoFar, c)
+				default:
+					// something broke the indent chain
+					shouldIndent = false
+				}
+			}
+		case '"':
+			i += 1
 			escaped := false
+		stringLoop:
 			for {
 				if !(i < len(s)) {
 					diags = append(diags, Diagnostic{
@@ -73,157 +83,44 @@ tokenLoop:
 					})
 					return
 				}
+				c2 := s[i]
 				if escaped {
+					if c2 == '\n' {
+						nextLine()
+					} else {
+						i += 1
+					}
 					escaped = false
 				} else {
-					switch s[i] {
+					switch c2 {
+					case '\n':
+						nextLine()
 					case '\\':
+						i += 1
 						escaped = true
 					case '"':
 						i += 1
-						goto commitToken // <--- this is the only exit path
+						break stringLoop
+					default:
+						i += 1
 					}
 				}
-				i += 1
 			}
-		}
-		switch s[i] {
 		case '#':
-			typ = ttPound
-		case '\'':
-			typ = ttQuote
-		case ';':
-			typ = ttSemi
-		case '\\':
-			typ = ttEscape
-		case '(':
-			typ = ttParenL
-		case ')':
-			typ = ttParenR
-		case '[':
-			typ = ttBracketL
-		case ']':
-			typ = ttBracketR
-		case '{':
-			typ = ttBraceL
-		case '|':
-			typ = ttPipe
-		case '}':
-			typ = ttBraceR
-		case '\n':
-			typ = ttLf
-		case '	', ' ':
-			typ = ttWhiteSpace
-		default:
-			// control characters that weren't picked up before this are discarded
-			if isControlChar(s[i]) {
-				i += 1
-				continue tokenLoop
-			}
-			typ = ttOther
-		}
-		i += 1
-	commitToken:
-		// there are a few types of tokens we'd like to combine
-		// - ttIndent
-		// - ttOther
-		if typ == ttOther || typ == ttWhiteSpace {
-			// if this token's type is the same as the previous one,
-			// just combine them
-			lastIdx := len(out) - 1
-			if 0 <= lastIdx {
-				last := out[lastIdx]
-				if last.typ == typ {
-					last.end = i
-					continue
-				}
-			}
-		}
-
-		out = append(out, Token{beg, i, typ})
-	}
-	good = true
-	return
-}
-
-func Untokenize(ts []Token) string {
-	var sb strings.Builder
-	for _, token := range ts {
-		switch token.typ {
-		case ttString:
-			sb.WriteString("\"abc\"")
-		case ttQuote:
-			sb.WriteByte('\'')
-		case ttPound:
-			sb.WriteByte('#')
-		case ttSemi:
-			sb.WriteByte(';')
-		case ttEscape:
-			sb.WriteByte('\\')
-		case ttPipe:
-			sb.WriteByte('|')
-		case ttParenL:
-			sb.WriteByte('(')
-		case ttParenR:
-			sb.WriteByte(')')
-		case ttBracketL:
-			sb.WriteByte('[')
-		case ttBracketR:
-			sb.WriteByte(']')
-		case ttBraceL:
-			sb.WriteByte('{')
-		case ttBraceR:
-			sb.WriteByte('}')
-		case ttLf:
-			sb.WriteByte('\n')
-		case ttWhiteSpace:
-			sb.WriteByte(' ')
-		default:
-			sb.WriteString("_")
-		}
-	}
-	return sb.String()
-}
-
-type Comment struct {
-	Line bool
-	Beg  Pos
-	End  Pos
-}
-
-func Comments(s []byte) (good bool, comments []Comment, diags []Diagnostic) {
-	var ts []Token
-	good, ts, diags = Tokenize(s)
-	var i Pos
-	for i < len(ts) {
-		t := ts[i]
-		beg := i
-		switch t.typ {
-		case ttPound:
 			i += 1
-			if i < len(ts) {
-				t2 := ts[i]
-				switch t2.typ {
-				case ttSemi:
+			if i < len(s) {
+				c2 := s[i]
+				switch c2 {
+				case ';':
 					// we don't care about s-expression comments
 					// eat the tokens
 					i += 1
 					continue
-				case ttEscape: // #\
+				case '\\': // #\
+					// eat the \ plus one more character
+					i += 2
+				case '|': // #|
 					i += 1
-					if !(i < len(ts)) {
-						diags = append(diags, Diagnostic{
-							Level: DlFatal,
-							Beg:   beg,
-							End:   i,
-							Msg:   "A character after #\\ but instead saw EOF",
-						})
-					}
-					t3 := ts[i]
-					switch t3.typ {
-					case 
-					}
-				case ttPipe: // #|
 					// just want to point out that yes we could've used nicey wicey
 					// recursion (owo) but a simple counter will suffice
 					nestLevel := 1
@@ -231,61 +128,70 @@ func Comments(s []byte) (good bool, comments []Comment, diags []Diagnostic) {
 						// eat every token that isn't either
 						// 	another #|
 						// 	a closing |#
-						if !(i < len(ts)) {
+						if !(i < len(s)) {
 							diags = append(diags, Diagnostic{
 								Level: DlFatal,
 								Beg:   beg,
 								End:   i,
 								Msg:   "Expected |# but instead saw EOF",
 							})
+							return
 						}
-						i += 1
-						t3 := ts[i]
-						switch t3.typ {
-						case ttPound:
-							if i < len(ts) {
-								// normally here we'd i += 1
-								// but imagine this scenario:
-								// ##|
-								// 345
-								// even if t4 isn't a pipe, we still want it to become
-								// t3 next time
-								t4 := ts[i]
-								if t4.typ == ttPipe {
-									// only consume it if it means something
-									// in this case, another nest level
-									i += 1
-									nestLevel += 1
-								}
+						switch s[i] {
+						case '\n':
+							nextLine()
+						case '#': // first byte is #
+							i += 1
+							if i < len(s) && s[i] == '|' {
+								// the second byte is |
+								// we have another block comment
+								i += 1
+								nestLevel += 1
 							}
-						case ttPipe:
-							if i < len(ts) {
-								t4 := ts[i]
-								if t4.typ == ttPound {
-									i += 1
-									nestLevel -= 1
-								}
+						case '|': // first byte |
+							i += 1
+							if i < len(s) && s[i] == '#' {
+								// the second byte is #
+								// that's a closing block comment
+								i += 1
+								nestLevel -= 1
 							}
+						default:
+							i += 1
 						}
 					}
 					comments = append(comments, Comment{
-						Line: false,
-						Beg: beg,
-						End: i,
+						IsBlockComment: true,
+						Beg:            beg,
+						End:            i,
+						LineNum:        lineCounter,
+						CharNum:        begCharNum,
+						KnownIndent:    indentSoFar,
 					})
 				}
 			}
-		case ttPipe:
-		case ttParenL:
-		case ttParenR:
-		case ttBracketL:
-		case ttBracketR:
-		case ttBraceL:
-		case ttBraceR:
-		case ttLf:
-		case ttWhiteSpace:
-		case ttOther:
+		case ';':
+			i += 1
+		lineComment:
+			for i < len(s) {
+				if s[i] == '\n' {
+					nextLine()
+					break lineComment
+				}
+				i += 1
+			}
+			comments = append(comments, Comment{
+				IsBlockComment: false,
+				Beg:            beg,
+				End:            i,
+				LineNum:        lineCounter,
+				CharNum:        begCharNum,
+				KnownIndent:    indentSoFar,
+			})
+		default:
+			i += 1
 		}
 	}
+	good = true
 	return
 }

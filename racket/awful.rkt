@@ -25,9 +25,12 @@
 #\;(print "Hey look another line comment... oh wait")
 (print "I'd never do something as sneaky as putting a ;comment in a String")
 (print "\"; surely this must be a comment since the string is over")
+(print "\"#| Don't do this one wrong either!")
 (print "Did you hand\\e string escapes \'proper\\y\"?\"\\")
 
 #\"(print "Oh, you thought this was all a string?")
+
+'"at least quoting the start of a string doesn't curse it"
 
 #| is that #\| a character? (print "this is not code!")|#
 
