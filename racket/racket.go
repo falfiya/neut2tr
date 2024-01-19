@@ -1,15 +1,34 @@
 package racket
 
-// to get the text you'll have to trim the opening #| and closing |# for block
-// comments. for line comments
+import "strings"
+
 type Comment struct {
-	// if it's a block comment
-	IsBlockComment bool
-	Beg            int
-	End            int
-	LineNum        int
-	CharNum        int
-	KnownIndent    []byte
+	IsLineComment bool
+	Beg           int
+	End           int
+	LineNum       int
+	CharNum       int
+	KnownIndent   []byte
+}
+
+func (c Comment) InnerText(src string) string {
+	if c.IsLineComment {
+		return src[c.Beg+1 : c.End]
+	} else {
+		return src[c.Beg+2 : c.End-2]
+	}
+}
+func (c Comment) GetIndent() string {
+	var sb strings.Builder
+	for _, i := range c.KnownIndent {
+		sb.WriteByte(i)
+	}
+	missingIndent := c.CharNum - 1 - len(c.KnownIndent)
+	for missingIndent > 0 {
+		sb.WriteByte(' ')
+		missingIndent -= 1
+	}
+	return sb.String()
 }
 
 //go:generate stringer -type=DiagnosticLevel
@@ -20,6 +39,7 @@ const (
 	DlWarn
 	DlFatal
 )
+
 type Diagnostic struct {
 	Level DiagnosticLevel
 	Beg   int
@@ -107,6 +127,7 @@ func Comments(s []byte) (good bool, comments []Comment, diags []Diagnostic) {
 				}
 			}
 		case '#':
+			savedIndentSoFar := indentSoFar
 			i += 1
 			if i < len(s) {
 				c2 := s[i]
@@ -161,17 +182,18 @@ func Comments(s []byte) (good bool, comments []Comment, diags []Diagnostic) {
 						}
 					}
 					comments = append(comments, Comment{
-						IsBlockComment: true,
-						Beg:            beg,
-						End:            i,
-						LineNum:        lineCounter,
-						CharNum:        begCharNum,
-						KnownIndent:    indentSoFar,
+						IsLineComment: false,
+						Beg:           beg,
+						End:           i,
+						LineNum:       lineCounter,
+						CharNum:       begCharNum,
+						KnownIndent:   savedIndentSoFar,
 					})
 				}
 			}
 		case ';':
 			i += 1
+			savedIndentSoFar := indentSoFar
 		lineComment:
 			for i < len(s) {
 				if s[i] == '\n' {
@@ -181,12 +203,12 @@ func Comments(s []byte) (good bool, comments []Comment, diags []Diagnostic) {
 				i += 1
 			}
 			comments = append(comments, Comment{
-				IsBlockComment: false,
-				Beg:            beg,
-				End:            i,
-				LineNum:        lineCounter,
-				CharNum:        begCharNum,
-				KnownIndent:    indentSoFar,
+				IsLineComment: true,
+				Beg:           beg,
+				End:           i,
+				LineNum:       lineCounter,
+				CharNum:       begCharNum,
+				KnownIndent:   savedIndentSoFar,
 			})
 		default:
 			i += 1
