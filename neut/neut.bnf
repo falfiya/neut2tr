@@ -1,0 +1,45 @@
+# neu types bnf
+
+# let's just assume we don't have to deal with the semicolons
+
+<template> ::= "template" ":"? "\n" <annotation>
+<annotation> ::= <word> " " ":" " "? <type>
+<declaration> ::= <a> " " <target> " is " <rhs>
+
+# BUG: there's something wrong here but I don't really know what
+# I have a feeling that when this gets used, the stuff inside might not know it
+# can't use a ")" versus a "]"
+<list inside> ::=
+   | <listparen inside>
+   | <listbracket inside>
+<listparen inside> ::= "(" inside ")"
+<listbracket inside> ::= "[" inside "]"
+
+<target> ::=
+   | <word>
+   | <list <word>+>
+
+# royal horticultural society
+<rhs> ::=
+   | <alias>
+   | <enum>
+<alias> ::= <a>? <type>
+<enum> ::= "one of" <enumentry>+
+<enumentry> ::= "\n" " "? "-" " "? <type>
+
+<type> ::=
+   | <ggez>
+   | <function>
+# I don't really know why I need this but intuition tells me that I do
+<ggez> ::=
+   | <word>
+   | <list <type>*>
+   | "'" <ggez>
+# function arrow is left munchy
+<function> ::= <typeargs>? <ggez>* "->" <type>
+<typeargs> ::= "{" <word>* "}"
+
+# just to be clear here
+# BUG: actually also not whitespace
+<word> ::= <not "">
+<a> ::= "a" | "an"
