@@ -2,37 +2,33 @@
 # this only encodes enough information to figure out if something's a comment
 sourcefile ::=
    | <string>
-   | <char>
-   | <commentfake>
-   | <commentline>
-   | <commentblock>
+   | <char-literal>
+   | <comment-expr>
+   | <comment-line>
+   | <comment-block>
    | <...>
 
-string ::= <quote> <stringunit>* <quote>
-stringunit ::=
+string ::= <quote> <string-char>* <quote>
+string-char ::=
    | <escape> <utf8char>
    | <not <quote>>
 
-# not to be confused with utf8char, this is a racket character entry:
+# this is a racket character entry:
 # (princ #\\)
 # for instance.
 # this bnf is not technically accurate because stuff like #\space exists for
-# some reason. for our purposes, we only need to know when a quote isn't the
-# start of a string
-char ::= "#" <escape> <utf8char>
+# some reason.
+# for our purposes the only two characters we care about are #\; and #\"
+char-literal ::= "#" <escape> <regex ".">
 
 # there's this cute construct where you can comment out an entire s-expression
 # #;(this is commented out
 #    even if it's on multiple lines!)
 # more work for me!
-commentfake ::= "#;"
-# tempted to name that one commentreal
-commentline ::= ";" <lf>
-commentblock ::= "#|" <commentblockinside> "|#"
+comment-expr ::= "#;"
+comment-line ::= ";" <lf>
 # nested block comments are a thing!
-commentblockinside ::=
-   | <commentblock>
-   | <...>
+comment-block ::= "#|" (<comment-block> | <...>) "|#"
 
 quote ::= '"'
 escape ::= '\\'

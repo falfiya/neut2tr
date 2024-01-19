@@ -8,26 +8,26 @@ func _() {
 	// An "invalid array index" compiler error signifies that the constant values have changed.
 	// Re-run the stringer command to generate them again.
 	var x [1]struct{}
-	_ = x[TtQuote-0]
-	_ = x[TtPound-1]
-	_ = x[TtSemi-2]
-	_ = x[TtEscape-3]
-	_ = x[TtPipe-4]
-	_ = x[TtParenL-5]
-	_ = x[TtParenR-6]
-	_ = x[TtBracketL-7]
-	_ = x[TtBracketR-8]
-	_ = x[TtBraceL-9]
-	_ = x[TtBraceR-10]
-	_ = x[TtIndent-11]
-	_ = x[TtLf-12]
-	_ = x[TtString-13]
-	_ = x[TtOther-14]
+	_ = x[ttString-0]
+	_ = x[ttPound-1]
+	_ = x[ttPipe-2]
+	_ = x[ttQuote-3]
+	_ = x[ttSemi-4]
+	_ = x[ttEscape-5]
+	_ = x[ttParenL-6]
+	_ = x[ttParenR-7]
+	_ = x[ttBracketL-8]
+	_ = x[ttBracketR-9]
+	_ = x[ttBraceL-10]
+	_ = x[ttBraceR-11]
+	_ = x[ttLf-12]
+	_ = x[ttWhiteSpace-13]
+	_ = x[ttOther-14]
 }
 
-const _TokenType_name = "TtQuoteTtPoundTtSemiTtEscapeTtPipeTtParenLTtParenRTtBracketLTtBracketRTtBraceLTtBraceRTtIndentTtLfTtStringTtOther"
+const _TokenType_name = "ttStringttPoundttPipettQuotettSemittEscapettParenLttParenRttBracketLttBracketRttBraceLttBraceRttLfttWhiteSpacettOther"
 
-var _TokenType_index = [...]uint8{0, 7, 14, 20, 28, 34, 42, 50, 60, 70, 78, 86, 94, 98, 106, 113}
+var _TokenType_index = [...]uint8{0, 8, 15, 21, 28, 34, 42, 50, 58, 68, 78, 86, 94, 98, 110, 117}
 
 func (i TokenType) String() string {
 	if i < 0 || i >= TokenType(len(_TokenType_index)-1) {

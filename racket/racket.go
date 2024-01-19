@@ -8,21 +8,21 @@ import (
 type TokenType int
 
 const (
-	TtQuote TokenType = iota
-	TtPound
-	TtSemi
-	TtEscape
-	TtPipe
-	TtParenL
-	TtParenR
-	TtBracketL
-	TtBracketR
-	TtBraceL
-	TtBraceR
-	TtIndent
-	TtLf
-	TtString
-	TtOther
+	ttString TokenType = iota
+	ttPound
+	ttPipe
+	ttQuote
+	ttSemi
+	ttEscape
+	ttParenL
+	ttParenR
+	ttBracketL
+	ttBracketR
+	ttBraceL
+	ttBraceR
+	ttLf
+	ttWhiteSpace
+	ttOther
 )
 
 type Pos = int
@@ -42,10 +42,14 @@ const (
 )
 
 type Diagnostic struct {
-	level DiagnosticLevel
-	beg   Pos
-	end   Pos
-	msg   string
+	Level DiagnosticLevel
+	Beg   Pos
+	End   Pos
+	Msg   string
+}
+
+func isControlChar(b byte) bool {
+	return b < '!' || b == 127
 }
 
 func Tokenize(s []byte) (good bool, out []Token, diags []Diagnostic) {
@@ -53,58 +57,19 @@ func Tokenize(s []byte) (good bool, out []Token, diags []Diagnostic) {
 	var i Pos
 tokenLoop:
 	for i < len(s) {
-		// skip over spaces
-		var beg Pos = i
+		beg := i
 		var typ TokenType
-		switch s[i] {
-		case '\'':
-			typ = TtQuote
-		case '#':
-			typ = TtPound
-		case ';':
-			typ = TtSemi
-		case '\\':
-			typ = TtEscape
-		case '|':
-			typ = TtPipe
-		case '(':
-			typ = TtParenL
-		case ')':
-			typ = TtParenR
-		case '[':
-			typ = TtBracketL
-		case ']':
-			typ = TtBracketR
-		case '{':
-			typ = TtBraceL
-		case '}':
-			typ = TtBraceR
-		case '\n':
-			typ = TtLf
-		case '	', ' ':
-			typ = TtIndent
-		default:
-			// any control characters that weren't picked up before this are discarded
-			if s[i] < '!' || s[i] == 127 {
-				i += 1
-				continue tokenLoop
-			}
-			goto stringOrOther // -----+
-		}                     //      |
-		i += 1                //      |
-		goto commitToken      //      |
-	stringOrOther:           //      |
-		if s[i] == '"' {      // <----+
+		if s[i] == '"' {
 			i += 1
-			typ = TtString
+			typ = ttString
 			escaped := false
 			for {
-				if i == len(s) {
+				if !(i < len(s)) {
 					diags = append(diags, Diagnostic{
-						level: DlFatal,
-						beg:   beg,
-						end:   i,
-						msg:   "Expected \" but instead saw EOF",
+						Level: DlFatal,
+						Beg:   beg,
+						End:   i,
+						Msg:   "Expected \" but instead saw EOF",
 					})
 					return
 				}
@@ -116,21 +81,55 @@ tokenLoop:
 						escaped = true
 					case '"':
 						i += 1
-						goto commitToken
+						goto commitToken // <--- this is the only exit path
 					}
 				}
 				i += 1
 			}
-		} else {
-			i += 1
-			typ = TtOther
 		}
+		switch s[i] {
+		case '#':
+			typ = ttPound
+		case '\'':
+			typ = ttQuote
+		case ';':
+			typ = ttSemi
+		case '\\':
+			typ = ttEscape
+		case '(':
+			typ = ttParenL
+		case ')':
+			typ = ttParenR
+		case '[':
+			typ = ttBracketL
+		case ']':
+			typ = ttBracketR
+		case '{':
+			typ = ttBraceL
+		case '|':
+			typ = ttPipe
+		case '}':
+			typ = ttBraceR
+		case '\n':
+			typ = ttLf
+		case '	', ' ':
+			typ = ttWhiteSpace
+		default:
+			// control characters that weren't picked up before this are discarded
+			if isControlChar(s[i]) {
+				i += 1
+				continue tokenLoop
+			}
+			typ = ttOther
+		}
+		i += 1
 	commitToken:
 		// there are a few types of tokens we'd like to combine
-		// - TtIndent
-		// - TtOther
-		// if this token is the same
-		if typ == TtOther || typ == TtIndent {
+		// - ttIndent
+		// - ttOther
+		if typ == ttOther || typ == ttWhiteSpace {
+			// if this token's type is the same as the previous one,
+			// just combine them
 			lastIdx := len(out) - 1
 			if 0 <= lastIdx {
 				last := out[lastIdx]
@@ -142,7 +141,6 @@ tokenLoop:
 		}
 
 		out = append(out, Token{beg, i, typ})
-
 	}
 	good = true
 	return
@@ -152,37 +150,142 @@ func Untokenize(ts []Token) string {
 	var sb strings.Builder
 	for _, token := range ts {
 		switch token.typ {
-		case TtQuote:
+		case ttString:
+			sb.WriteString("\"abc\"")
+		case ttQuote:
 			sb.WriteByte('\'')
-		case TtPound:
+		case ttPound:
 			sb.WriteByte('#')
-		case TtSemi:
+		case ttSemi:
 			sb.WriteByte(';')
-		case TtEscape:
+		case ttEscape:
 			sb.WriteByte('\\')
-		case TtPipe:
+		case ttPipe:
 			sb.WriteByte('|')
-		case TtParenL:
+		case ttParenL:
 			sb.WriteByte('(')
-		case TtParenR:
+		case ttParenR:
 			sb.WriteByte(')')
-		case TtBracketL:
+		case ttBracketL:
 			sb.WriteByte('[')
-		case TtBracketR:
+		case ttBracketR:
 			sb.WriteByte(']')
-		case TtBraceL:
+		case ttBraceL:
 			sb.WriteByte('{')
-		case TtBraceR:
+		case ttBraceR:
 			sb.WriteByte('}')
-		case TtString:
-			sb.WriteString("\"???\"")
-		case TtLf:
+		case ttLf:
 			sb.WriteByte('\n')
-		case TtIndent:
+		case ttWhiteSpace:
 			sb.WriteByte(' ')
 		default:
 			sb.WriteString("_")
 		}
 	}
 	return sb.String()
+}
+
+type Comment struct {
+	Line bool
+	Beg  Pos
+	End  Pos
+}
+
+func Comments(s []byte) (good bool, comments []Comment, diags []Diagnostic) {
+	var ts []Token
+	good, ts, diags = Tokenize(s)
+	var i Pos
+	for i < len(ts) {
+		t := ts[i]
+		beg := i
+		switch t.typ {
+		case ttPound:
+			i += 1
+			if i < len(ts) {
+				t2 := ts[i]
+				switch t2.typ {
+				case ttSemi:
+					// we don't care about s-expression comments
+					// eat the tokens
+					i += 1
+					continue
+				case ttEscape: // #\
+					i += 1
+					if !(i < len(ts)) {
+						diags = append(diags, Diagnostic{
+							Level: DlFatal,
+							Beg:   beg,
+							End:   i,
+							Msg:   "A character after #\\ but instead saw EOF",
+						})
+					}
+					t3 := ts[i]
+					switch t3.typ {
+					case 
+					}
+				case ttPipe: // #|
+					// just want to point out that yes we could've used nicey wicey
+					// recursion (owo) but a simple counter will suffice
+					nestLevel := 1
+					for nestLevel > 0 {
+						// eat every token that isn't either
+						// 	another #|
+						// 	a closing |#
+						if !(i < len(ts)) {
+							diags = append(diags, Diagnostic{
+								Level: DlFatal,
+								Beg:   beg,
+								End:   i,
+								Msg:   "Expected |# but instead saw EOF",
+							})
+						}
+						i += 1
+						t3 := ts[i]
+						switch t3.typ {
+						case ttPound:
+							if i < len(ts) {
+								// normally here we'd i += 1
+								// but imagine this scenario:
+								// ##|
+								// 345
+								// even if t4 isn't a pipe, we still want it to become
+								// t3 next time
+								t4 := ts[i]
+								if t4.typ == ttPipe {
+									// only consume it if it means something
+									// in this case, another nest level
+									i += 1
+									nestLevel += 1
+								}
+							}
+						case ttPipe:
+							if i < len(ts) {
+								t4 := ts[i]
+								if t4.typ == ttPound {
+									i += 1
+									nestLevel -= 1
+								}
+							}
+						}
+					}
+					comments = append(comments, Comment{
+						Line: false,
+						Beg: beg,
+						End: i,
+					})
+				}
+			}
+		case ttPipe:
+		case ttParenL:
+		case ttParenR:
+		case ttBracketL:
+		case ttBracketR:
+		case ttBraceL:
+		case ttBraceR:
+		case ttLf:
+		case ttWhiteSpace:
+		case ttOther:
+		}
+	}
+	return
 }
