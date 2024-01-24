@@ -14,7 +14,7 @@ type Comment struct {
 	IsLineComment bool
 }
 
-func Comments(s []byte) (comments []Comment, pe *ParseError) {
+func Comments(s string) (comments []Comment, pe *ParseError) {
 	lex := lexer.New(s)
 	for lex.More() {
 		beg := lex.Pos()

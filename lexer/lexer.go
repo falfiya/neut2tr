@@ -1,10 +1,15 @@
 package lexer
 
 type Lexer struct {
-	source []byte
+	source string
 	offset int
 	lineAt int
 	lineNo int
+}
+
+func New(source string) (lex Lexer) {
+	lex.source = source
+	return
 }
 
 func (lex Lexer) Offset() int {
@@ -51,10 +56,5 @@ func (lex Lexer) Copy() Lexer {
 func (lex Lexer) Peek() (lexOut Lexer) {
 	lexOut = lex.Copy()
 	lexOut.Bump()
-	return
-}
-
-func New(source []byte) (lex Lexer) {
-	lex.source = source
 	return
 }

@@ -40,30 +40,18 @@ func (p Pos) SelectTill(offset int) Sel {
 	}
 }
 
-func (p Pos) StartOfLine(source []byte) []byte {
+func (p Pos) StartOfLine(source string) string {
 	return source[p.LineAt:p.Offset]
 }
 
-func (p Pos) StartOfLineS(source []byte) string {
-	return string(p.StartOfLine(source))
-}
-
-func (p Pos) Before(source []byte) []byte {
+func (p Pos) Before(source string) string {
 	return source[:p.Offset]
 }
 
-func (p Pos) BeforeS(source []byte) string {
-	return string(p.Before(source))
-}
-
-func (s Sel) Apply(source []byte) []byte {
+func (s Sel) From(source string) string {
 	return source[s.Offset:s.Offset + s.Count]
 }
 
-func (s Sel) ApplyS(source []byte) string {
-	return string(s.After(source))
-}
-
-func (s Sel) After(source []byte) []byte {
+func (s Sel) After(source string) string {
 	return source[s.Offset + s.Count:]
 }

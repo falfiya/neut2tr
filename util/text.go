@@ -1,12 +1,13 @@
 package util
 
-func IndentOnly(s []byte) []byte {
-	for i, char := range s {
+func IndentOnly(s string) string {
+	bytes := []byte(s)
+	for i, char := range bytes {
 		switch char {
 		case '	', ' ':
 		default:
-			s[i] = ' '
+			bytes[i] = ' '
 		}
 	}
-	return s
+	return string(bytes)
 }

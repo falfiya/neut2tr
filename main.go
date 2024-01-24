@@ -10,21 +10,22 @@ import (
 )
 
 func main() {
-	dat, _ := os.ReadFile("./examples/awful.rkt")
-	comments, err := racket.Comments(dat)
+	bytes, _ := os.ReadFile("./examples/awful.rkt")
+	src := string(bytes)
+	comments, err := racket.Comments(src)
 	if err != nil {
 		fmt.Printf("Error: %+v\n", *err)
 	}
 	pos := 0
 	for _, c := range comments {
-		fmt.Print(string(dat[pos:c.Offset]))
+		fmt.Print(src[pos:c.Offset])
 		pos = c.Offset
-		color.HiBlack(string(dat[c.Offset:c.Offset + c.Count]))
+		color.HiBlack(src[c.Offset:c.Offset + c.Count])
 		pos += c.Count
 		if c.IsLineComment {
-			fmt.Print(string(util.IndentOnly(c.StartOfLine(dat))))
+			fmt.Print(util.IndentOnly(c.StartOfLine(src)))
 			color.Yellow("; ^ that is a comment")
 		}
 	}
-	fmt.Print(string(dat[pos:]))
+	fmt.Print(src[pos:])
 }
