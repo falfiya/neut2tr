@@ -55,3 +55,7 @@ func (s Sel) From(source string) string {
 func (s Sel) After(source string) string {
 	return source[s.Offset + s.Count:]
 }
+
+func (s Sel) LastOffset() int {
+	return s.Offset + s.Count - 1
+}

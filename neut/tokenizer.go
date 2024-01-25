@@ -10,6 +10,9 @@ type token struct {
 	lexer.Sel
 	text string
 }
+func (t token) isWord() bool {
+	return t.Count > 1
+}
 
 func tokenize(s string) (tokens []token) {
 	lex := lexer.New(s)

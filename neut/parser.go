@@ -2,44 +2,114 @@ package neut
 
 import "neutttr/lexer"
 
-type Node = any
-
-type CommentNode struct {
-	children []Node
+type Node interface {
+	Base() NodeBase
 }
 
-func parse(s string) any {
-	tokens := tokenize(s)
-	i := 0
-	for i < len(tokens) {
-		tok := tokens[i]
-		i += 1
-		switch tok.text {
-		case "a", "an":
-			if i < len(tokens) {
-				tok2 := tokens[i]
-				if tok2.typ == ttWord {
-					
-					continue
-				} else {
-					panic("This isn't valid syntax")
-				}
-			}
-		}
-	}
+type NodeBase struct {
+	lexer.Sel
+}
+func (n NodeBase) Base() NodeBase {
+	return n
+}
+
+type CommentNode struct {
+	NodeBase
+	children []Node
 }
 
 // declarations
 type AliasNode struct {
-	lexer.Sel
+	NodeBase
 	target   IdentifierNode
 	typeExpr Node
 }
 
+func parseSymbol(ts *[]token) *token {
+	tokens := *ts
+	if len(tokens) == 0 {
+		return nil
+	}
+	current := tokens[0]
+	if current.isWord() {
+		return nil
+	}
+	rest := tokens[1:]
+	ts = &rest
+	return &current
+}
+
+func parseWord(ts *[]token) *token {
+	tokens := *ts
+	if len(tokens) == 0 {
+		return nil
+	}
+	current := tokens[0]
+	if !current.isWord() {
+		return nil
+	}
+	rest := tokens[1:]
+	ts = &rest
+	return &current
+}
+
+func parseArticle(ts *[]token) *token {
+	tokens := *ts
+	word := parseWord(&tokens)
+	if word == nil {
+		return nil
+	}
+	if word.text != "a" {
+		return nil
+	}
+	if word.text != "an" {
+		return nil
+	}
+	ts = &tokens
+	return word
+}
+
 type AnnotationNode struct {
-	lexer.Sel
+	NodeBase
 	target   IdentifierNode
 	typeExpr Node
+}
+
+// (a|an) <word> is (a|an)
+func parseAnnotation(ts *[]token) *AnnotationNode {
+	tokens := *ts
+	article1 := parseArticle(&tokens)
+	if article1 == nil {
+		return nil
+	}
+	identifier := parseIdentifier(&tokens)
+	if identifier == nil {
+		return nil
+	}
+	is := parseWord(&tokens)
+	if is == nil {
+		return nil
+	}
+	if is.text != "is" {
+		return nil
+	}
+	maybeArticle2 := parseArticle(&tokens)
+	// doesn't matter if that's nil
+	_ = maybeArticle2
+	typeExpr := parseTypeExpr(&tokens)
+	if typeExpr == nil {
+		return nil
+	}
+	ts = &tokens
+	startPos := article1.Pos
+	endOffset := (*typeExpr).Base().LastOffset()
+	count := endOffset - startPos.Offset
+	sel := lexer.Sel{Pos: startPos, Count: count}
+	return &AnnotationNode{
+		NodeBase: NodeBase{sel},
+		target: *identifier,
+		typeExpr: *typeExpr,
+	}
 }
 
 type SumTypeNode struct {
@@ -59,9 +129,20 @@ func parseTemplate(ts *[]token) *TemplateNode {
 }
 
 // Expression Nodes
+func parseTypeExpr(ts *[]token) *Node {
+	
+}
+
 type IdentifierNode struct {
 	lexer.Sel
-	name string
+}
+
+func parseIdentifier(ts *[]token) *IdentifierNode {
+	tokens := *ts
+	word := parseWord(&tokens)
+	return &IdentifierNode{
+		Sel: word.Sel,
+	}
 }
 
 type SExprNode struct {
@@ -81,19 +162,4 @@ type GenericNode struct {
 	lexer.Sel
 	params []Node
 	sub    Node
-}
-
-func parseIdentifier(tokens *[]token) *IdentifierNode {
-	ts := *tokens
-	t := ts[0]
-	if t.typ == ttWord {
-		rest := ts[1:]
-		tokens = &rest
-		return &IdentifierNode{
-			t.Sel,
-			t.text,
-		}
-	} else {
-		return nil;
-	}
 }
