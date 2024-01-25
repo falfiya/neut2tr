@@ -2,7 +2,6 @@ package neut
 
 import (
 	"neutttr/lexer"
-	"neutttr/util/ascii"
 	"strings"
 )
 
@@ -14,31 +13,32 @@ func (t token) isWord() bool {
 	return t.Count > 1
 }
 
-// I've got a feeling this tokenizer isn't gonna work the way I want it to work
-// things like (is-even? variable-name-with-symbols-in-it) are still single
-// tokens. I think for my purposes, all I care about is splitting stuff by
-// spaces.
+func isDelimiter(c byte) bool {
+	return c <= ' ' || c == 127
+}
 
 func tokenize(s string) (tokens []token) {
 	lex := lexer.New(s)
 	for lex.More() {
 		beg := lex.Pos()
 		c := lex.Pop()
-		if ascii.IsAlphanumericOr_(c) {
-			for lex.More() && ascii.IsAlphanumericOr_(lex.Next()) {
-				lex.Bump()
+		if isDelimiter(c) {
+			continue
+		}
+		// we're going to push a token
+		tokenLoop: for lex.More() {
+			c := lex.Pop()
+			if !isDelimiter(c) {
+				continue tokenLoop
 			}
+			// ignore c
 			sel := lexer.Sel {
 				Pos: beg,
 				Count: lex.Offset() - beg.Offset,
 			}
-			tokens = append(tokens, token{sel, strings.ToLower(sel.From(s))})
-		} else if c == '\n' || !ascii.IsControlCharacter(c) {
-			sel := lexer.Sel{
-				Pos: lex.Pos(),
-				Count: 1,
-			}
-			tokens = append(tokens, token{sel, strings.ToLower(sel.From(s))})
+			text := strings.ToLower(sel.From(s))
+			tokens = append(tokens, token{sel, text})
+			break
 		}
 	}
 	return

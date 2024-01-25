@@ -1,4 +1,4 @@
-package ascii
+package unused
 
 func IsControlCharacter(c byte) bool {
 	return c < ' ' || c == 127

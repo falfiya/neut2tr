@@ -12,14 +12,16 @@
 
 <template> ::= "template" ":"? "\n" <declaration>
 
-<declaration> ::=
-   | <sum-type-declaration>
-   | <alias-declaration>
-
-<sum-type-declaration> ::= <a> <word> "is one of" <sum-type-element>+
-<sum-type-element> ::= "\n" "-" <type-expr>
-
-<alias-declaration> ::= <a> <word> "is" <a>? <type-expr>
+<declaration> ::= <a> <declaration-target> "is" (<sum-type> | <alias>)
+<declaration-target> ::=
+   | <word> ("(" <word> ")")?
+   | <declaration-generic>
+<declaration-generic> ::=
+   | "(" <word> <word>+ ")"
+   | "[" <word> <word>+ ")"
+<sum-type-rhs> ::= "one" "of" <sum-type-element>+
+<sum-type-element> ::= "-" <type-expr>
+<alias-rhs> ::= <a>? <type-expr>
 
 <type-expr> ::=
    | <list-type>
