@@ -14,6 +14,11 @@ func (t token) isWord() bool {
 	return t.Count > 1
 }
 
+// I've got a feeling this tokenizer isn't gonna work the way I want it to work
+// things like (is-even? variable-name-with-symbols-in-it) are still single
+// tokens. I think for my purposes, all I care about is splitting stuff by
+// spaces.
+
 func tokenize(s string) (tokens []token) {
 	lex := lexer.New(s)
 	for lex.More() {
