@@ -22,6 +22,7 @@ func (lex Lexer) Pos() Pos {
 	}
 }
 
+// (Zero-Indexed)
 func (p Pos) CharNo() int {
 	return p.Offset - p.LineAt
 }

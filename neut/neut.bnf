@@ -3,6 +3,9 @@
 #! token mode (whitespace omitted between tokens)
 #! ordered unions (<a> | <b> is different than <b> | <a>)
 
+<a> ::= "a" | "an"
+<word> ::= assumed
+
 <comment> ::= (<meaningful> | <garbage>)*
 <garbage> ::= <anything> "\n"
 <meaningful> ::=
@@ -12,27 +15,26 @@
 
 <template> ::= "template" ":"? "\n" <declaration>
 
-<declaration> ::= <a> <declaration-target> "is" (<sum-type> | <alias>)
+<declaration> ::= <a> <declaration-target> "is" (<sum-type-rhs> | <alias-rhs>)
 <declaration-target> ::=
-   | <word> ("(" <word> ")")?
    | <declaration-generic>
+   | <word>
 <declaration-generic> ::=
    | "(" <word> <word>+ ")"
    | "[" <word> <word>+ ")"
-<sum-type-rhs> ::= "one" "of" <sum-type-element>+
-<sum-type-element> ::= "-" <type-expr>
-<alias-rhs> ::= <a>? <type-expr>
+<sum-type-rhs> ::= "one" "of" <sum-type-element> <sum-type-element>+
+<sum-type-element> ::= "-" <type>
+<alias-rhs> ::= <a>? <type>
 
-<type-expr> ::=
-   | <list-type>
+<annotation> ::= <word> ":" <function-type-inside> | <type>
+
+<type> ::=
    | <function-type>
-   | <bare-type>
+   | <list-type>
+   | <word>
+<function-type> ::= "[" <function-type-inside> "]"
+<function-type-inside> ::= <function-generic>? <type>* "->" <type>
+<function-generic> ::= "{" <word>+ "}"
 <list-type> ::=
-   | "(" <type-expr>* "]"
-   | "[" <type-expr>* "]"
-<function-type> ::= <generic-param>* <type-expr>* "->" <type-expr>
-<generic-param> ::= "{" <word> "}"
-<bare-type> ::= <word>
-
-<word> ::= assumed
-<a> ::= "a" | "an"
+   | "(" <type>* ")"
+   | "[" <type>* "]"

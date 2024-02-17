@@ -9,15 +9,15 @@ type token struct {
 	lexer.Sel
 	text string
 }
-func (t token) isWord() bool {
-	return t.Count > 1
-}
 
 func isDelimiter(c byte) bool {
 	return c <= ' ' || c == 127
 }
 
+// splits a string into tokens
+// delimiters are any control characters, whitespace. this includes newlines
 func tokenize(s string) (tokens []token) {
+	panic("This doesn't split things correctly. {} should not be one token!")
 	lex := lexer.New(s)
 	for lex.More() {
 		beg := lex.Pos()
