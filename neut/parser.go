@@ -340,7 +340,12 @@ func parseFunction(ts *[]token) *FunctionTypeNode {
 }
 
 func parseFunctionInside(ts *[]token) *FunctionTypeNode {
-	
+	tokens := *ts
+
+	maybeGeneric := parseFunctionGeneric(&tokens)
+	for {
+		parseString(&tokens, "->")
+	}
 }
 
 type FunctionGenericNode struct {

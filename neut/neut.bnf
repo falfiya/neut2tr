@@ -33,7 +33,7 @@
    | <list-type>
    | <word>
 <function-type> ::= "[" <function-type-inside> "]"
-<function-type-inside> ::= <function-generic>? <type>* "->" <type>
+<function-type-inside> ::= <function-generic>? <type>+ "->" <type>
 <function-generic> ::= "{" <word>+ "}"
 <list-type> ::=
    | "(" <type>* ")"
