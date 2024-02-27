@@ -23,7 +23,7 @@
    | "(" <word> <word>+ ")"
    | "[" <word> <word>+ ")"
 <sum-type-rhs> ::= "one" "of" <sum-type-element> <sum-type-element>+
-<sum-type-element> ::= "-" <type>
+<sum-type-element> ::= "\n" "-" <type>
 <alias-rhs> ::= <a>? <type>
 
 <annotation> ::= <word> ":" <function-type-inside> | <type>

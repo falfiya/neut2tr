@@ -3,17 +3,20 @@ package neut
 // returns [](nil | TemplateNode | DeclarationNode | AnnotationNode)
 func parse(tokens []token) (meaningful []Node) {
 	// All valid NEU type info starts on the first token of a line.
-	// If we encounter garbage at the start of a line, ignore the rest of the
-	// line.
-	currentLine := -1
 	for len(tokens) > 0 {
-		current := tokens[0]
-		tokens = tokens[1:]
-		if currentLine < current.LineNo {
-			// we've moved onto the next line
-			maybeMeaningful := parseMeaningful(&tokens)
-			if maybeMeaningful != nil {
-				meaningful = append(meaningful, maybeMeaningful)
+		maybeMeaningful := parseMeaningful(&tokens)
+		if maybeMeaningful != nil {
+			meaningful = append(meaningful, maybeMeaningful)
+			continue
+		} else {
+			// If we encounter garbage at the start of a line, ignore the rest of the
+			// line.
+			for len(tokens) > 0 {
+				_, isNewline := tokens[0].(newlineToken)
+				tokens = tokens[1:]
+				if isNewline {
+					break
+				}
 			}
 		}
 	}
@@ -392,10 +395,12 @@ func parseIdentifier(ts *[]token) *IdentifierNode {
 	if len(tokens) == 0 {
 		return nil
 	}
-	current := tokens[0]
-	rest := tokens[1:]
-	ts = &rest
-	return &IdentifierNode{NodeBase{current.Sel}}
+	current, ok := tokens[0].(identifierToken)
+	if ok {
+		*ts = tokens[1:]
+		return &IdentifierNode{NodeBase{current.Sel}}
+	}
+	return nil
 }
 
 // Returns nil if the token did not match s.
@@ -414,16 +419,18 @@ func parseString(ts *[]token, s string) *token {
 	return &current
 }
 
-func parseArticle(ts *[]token) *token {
+func parseArticle(ts *[]token) *identifierToken {
 	tokens := *ts
 	if len(tokens) == 0 {
 		return nil
 	}
 	current := tokens[0]
-	if current.text != "a" && current.text != "an" {
-		return nil
+	switch t := current.(type) {
+	case identifierToken:
+		if t.name == "a" || t.name == "an" {
+			*ts = tokens[1:]
+			return &t
+		}
 	}
-	rest := tokens[1:]
-	ts = &rest
-	return &current
+	return nil
 }
