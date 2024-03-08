@@ -69,10 +69,10 @@ tokenLoop:
 		c := lex.Pop()
 		if c == '\n' {
 			tokens = append(tokens, newlineToken{beg})
-			continue
+			continue tokenLoop
 		}
 		if isControlCharacter(c) {
-			continue
+			continue tokenLoop
 		}
 		// we're going to push a token
 		if c == '"' {
@@ -101,20 +101,19 @@ tokenLoop:
 				Count: lex.Offset() - beg.Offset,
 			}
 			tokens = append(tokens, stringToken{sel})
+			continue tokenLoop
 		}
 		if c == '#' {
-			if !lex.More() {
+			if lex.More() && lex.Next() == '%' {
+				// A hash is permitted in an identifier.
+				// But if it's at the start, it must be followed by a percent sign!
+				// That is to say that this is #not-allowed but #%this-is-allowed
+
+				// Let the code flow normally into the identifierLoop
+			} else {
+				// Identifier cannot begin with a hash!
 				goto tokenizeSymbol
 			}
-			if lex.Next() != '%' {
-				goto tokenizeSymbol
-			}
-			lex.Bump()
-			// a hash is permitted in an identifier unless it's
-			// - at the start
-			// - AND not followed by a percent sign
-			// that is to say that #notallowed
-			// but #%thisisallowed
 		}
 		{
 		identifierLoop:
@@ -127,11 +126,11 @@ tokenLoop:
 				}
 				c = lex.Pop()
 			}
+			text := strings.ToLower(s[beg.Offset:lex.Offset()])
 			sel := lexer.Sel{
 				Pos:   beg,
 				Count: lex.Offset() - beg.Offset,
 			}
-			text := strings.ToLower(sel.From(s))
 			tokens = append(tokens, identifierToken{sel, text})
 			continue tokenLoop
 		}

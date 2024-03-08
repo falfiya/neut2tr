@@ -41,22 +41,15 @@ func (p Pos) SelectTill(offset int) Sel {
 	}
 }
 
-func (p Pos) StartOfLine(source string) string {
-	return source[p.LineAt:p.Offset]
-}
-
-func (p Pos) Before(source string) string {
-	return source[:p.Offset]
-}
-
-func (s Sel) From(source string) string {
-	return source[s.Offset:s.Offset + s.Count]
-}
-
-func (s Sel) After(source string) string {
-	return source[s.Offset + s.Count:]
-}
-
 func (s Sel) LastOffset() int {
 	return s.Offset + s.Count - 1
+}
+
+// selection does not include End
+func (s Sel) End() int {
+	return s.Offset + s.Count
+}
+
+func (p Pos) End() int {
+	return p.Offset + 1
 }
