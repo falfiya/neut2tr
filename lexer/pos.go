@@ -27,22 +27,11 @@ func (p Pos) CharNo() int {
 	return p.Offset - p.LineAt
 }
 
-func (p Pos) Select(count int) Sel {
+func (p Pos) Select(notIncludedOffset int) Sel {
 	return Sel {
 		Pos: p,
-		Count: count,
+		Count: notIncludedOffset - p.Offset,
 	}
-}
-
-func (p Pos) SelectTill(offset int) Sel {
-	return Sel {
-		Pos: p,
-		Count: offset - p.Offset,
-	}
-}
-
-func (s Sel) LastOffset() int {
-	return s.Offset + s.Count - 1
 }
 
 // selection does not include End
@@ -52,4 +41,12 @@ func (s Sel) End() int {
 
 func (p Pos) End() int {
 	return p.Offset + 1
+}
+
+type SelF interface {
+	SelF() Sel
+}
+
+func (s Sel) SelF() Sel {
+	return s
 }
