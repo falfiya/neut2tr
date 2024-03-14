@@ -39,14 +39,6 @@ func (lex *Lexer) Bump() {
 	lex.offset += 1
 }
 
-// returns the next byte and bumps
-// I would like to deprecate this
-func (lex *Lexer) Pop() (nxt byte) {
-	nxt = lex.Next()
-	lex.Bump()
-	return
-}
-
 func (lex Lexer) Copy() Lexer {
 	return Lexer{
 		source: lex.source,

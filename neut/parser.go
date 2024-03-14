@@ -273,54 +273,70 @@ func parseAliasRhs(ts *[]token) *AliasRhsNode {
 		typeNode: typeNode,
 	}
 }
+*/
 
 type AnnotationNode struct {
-	NodeBase
-	target   IdentifierNode
+	lexer.Sel
+	target   IdentifierToken
+	// not a pointer
 	typeNode TypeNode
 }
-
 // foo : bar
-func parseAnnotation(ts *[]token) *AnnotationNode {
+func ParseAnnotation(ts *[]token) *AnnotationNode {
 	tokens := *ts
 
-	target := parseIdentifier(&tokens)
+	target := get[IdentifierToken](&tokens)
 	if target == nil {
 		return nil
 	}
 
-	colon := parseExactString(&tokens, ":")
-	if colon == nil {
+	maybeColon := get[IdentifierToken](&tokens)
+	if maybeColon == nil {
+		return nil
+	}
+	if maybeColon.Name != ":" {
 		return nil
 	}
 
-	var typeNode Node
-	typeNode = parseFunctionInside(&tokens)
-	if typeNode != nil {
-		// typeNode : FunctionTypeNode
-		goto typeResolved
+	var typeNode TypeNode
+	if maybeFunctionInside := parseFunctionInside(&tokens); maybeFunctionInside != nil {
+		typeNode = maybeFunctionInside
+	} else if maybeTypeNode := ParseType(&tokens); maybeTypeNode != nil {
+		typeNode = maybeTypeNode
 	}
-	typeNode = parseType(&tokens)
-	if typeNode != nil {
-		// typeNode : TypeNode
-		goto typeResolved
+
+	if typeNode == nil {
+		return nil
 	}
-	return nil
-typeResolved:
-	*ts = tokens
+
+	commit(ts, tokens)
 	return &AnnotationNode{
-		NodeBase: newNodeBase3(target, typeNode),
-		target:   *target,
-		typeNode: typeNode,
+		target.Select(typeNode.SelF().End()),
+		*target,
+		typeNode,
 	}
 }
-*/
+
+func parseArticle(ts *[]token) *ArticleNode {
+	tokens := *ts
+	maybeArticleToken := get[IdentifierToken](&tokens)
+	if maybeArticleToken.Name == "a" || maybeArticleToken.Name == "an" {
+		commit(ts, tokens)
+		return &ArticleNode{maybeArticleToken.Sel}
+	} else {
+		return nil
+	}
+}
+
+// *****************************************************************************
+// Type Parsing
+// *****************************************************************************
 
 // FunctionTypeNode | ListTypeNode | IdentifierToken | StringToken
 type TypeNode Node
 
 // or nil
-func ParseType(ts *[]token) Node {
+func ParseType(ts *[]token) TypeNode {
 	tokens := *ts
 
 	if maybeFunctionTypeNode := ParseFunctionType(&tokens); maybeFunctionTypeNode != nil {
@@ -525,17 +541,6 @@ type ArticleNode struct {
 	lexer.Sel
 }
 
-// func parseArticle(ts *[]token) *ArticleNode {
-// 	tokens := *ts
-// 	maybeArticleToken := get[IdentifierToken](&tokens)
-// 	if maybeArticleToken.Name == "a" || maybeArticleToken.Name == "an" {
-// 		commit(ts, tokens)
-// 		return &ArticleNode{maybeArticleToken.Sel}
-// 	} else {
-// 		return nil
-// 	}
-// }
-
 // either (true, nil, nil) (false, *T, nil) or (false, nil, token)
 // func getOrOther[T token](ts *[]token) (empty bool, target *T, other token) {
 // 	tokens := *ts
@@ -552,6 +557,10 @@ type ArticleNode struct {
 // 	}
 // 	return
 // }
+
+// *****************************************************************************
+// General Purpose Parser Functions
+// *****************************************************************************
 
 func get[T token](ts *[]token) *T {
 	tokens := *ts

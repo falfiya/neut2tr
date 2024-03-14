@@ -18,7 +18,9 @@ func Comments(s string) (comments []Comment, pe *ParseError) {
 	lex := lexer.New(s)
 	for lex.More() {
 		beg := lex.Pos()
-		switch lex.Pop() {
+		c := lex.Next()
+		lex.Bump()
+		switch c {
 		case '"':
 			escaped := false
 		stringLoop:
@@ -29,7 +31,8 @@ func Comments(s string) (comments []Comment, pe *ParseError) {
 					pe.Msg = "Expected \" but instead saw EOF"
 					return
 				}
-				c := lex.Pop()
+				c := lex.Next()
+				lex.Bump()
 				if escaped {
 					escaped = false
 				} else {
@@ -43,7 +46,9 @@ func Comments(s string) (comments []Comment, pe *ParseError) {
 			}
 		case '#':
 			if lex.More() {
-				switch lex.Pop() {
+				c := lex.Next()
+				lex.Bump()
+				switch c {
 				case '\\': // #\
 					// eat the \ plus one more character
 					lex.Bump()
@@ -62,7 +67,9 @@ func Comments(s string) (comments []Comment, pe *ParseError) {
 							pe.Msg = "Expected |# but instead saw EOF"
 							return
 						}
-						switch lex.Pop() {
+						c2 := lex.Next()
+						lex.Bump()
+						switch c2 {
 						case '#': // first byte is #
 							if lex.More() && lex.Next() == '|' {
 								// the second byte is |

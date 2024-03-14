@@ -59,7 +59,8 @@ func Tokenize(s string) (tokens []token, te *tokenizerError) {
 tokenLoop:
 	for lex.More() {
 		beg := lex.Pos()
-		c := lex.Pop()
+		c := lex.Next()
+		lex.Bump()
 		if c == '\n' {
 			tokens = append(tokens, NewlineToken{beg})
 			continue tokenLoop
@@ -71,7 +72,8 @@ tokenLoop:
 		if c == '"' {
 		stringLoop:
 			for lex.More() {
-				c := lex.Pop()
+				c := lex.Next()
+				lex.Bump()
 				if c == '\\' {
 					if lex.More() {
 						lex.Bump()

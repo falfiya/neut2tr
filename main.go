@@ -13,7 +13,7 @@ import (
 )
 
 func main() {
-	tokens, err := neut.Tokenize("[hello -> (make-something with \"a string\")]")
+	tokens, err := neut.Tokenize("fppbar : [hello -> (make-something with \"a string\")]")
 	if err != nil {
 		errors.Errorf("Error at line %d, char %d:\n%s", err.LineNo, err.CharNo(), err.Msg)
 	}
@@ -29,5 +29,5 @@ func main() {
 			fmt.Printf("%s ", color.YellowString(string(v.Symbol)))
 		}
 	}
-	spew.Dump(neut.ParseFunctionType(&tokens))
+	spew.Dump(neut.ParseAnnotation(&tokens))
 }
