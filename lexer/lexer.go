@@ -28,6 +28,7 @@ func (lex Lexer) Next() byte {
 	return lex.source[lex.offset]
 }
 
+// moves the lexer forward one byte
 func (lex *Lexer) Bump() {
 	switch lex.Next() {
 	case '\n':
@@ -38,6 +39,8 @@ func (lex *Lexer) Bump() {
 	lex.offset += 1
 }
 
+// returns the next byte and bumps
+// I would like to deprecate this
 func (lex *Lexer) Pop() (nxt byte) {
 	nxt = lex.Next()
 	lex.Bump()

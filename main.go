@@ -2,30 +2,32 @@ package main
 
 import (
 	"fmt"
-	"neutttr/racket"
-	"neutttr/util"
-	"os"
+	"neutttr/neut"
 
+	// "neutttr/racket"
+	// "neutttr/util"
+	// "os"
+	"github.com/cockroachdb/errors"
+	"github.com/davecgh/go-spew/spew"
 	"github.com/fatih/color"
 )
 
 func main() {
-	bytes, _ := os.ReadFile("./examples/awful.rkt")
-	src := string(bytes)
-	comments, err := racket.Comments(src)
+	tokens, err := neut.Tokenize("[hello -> (make-something with \"a string\")]")
 	if err != nil {
-		fmt.Printf("Error: %+v\n", *err)
+		errors.Errorf("Error at line %d, char %d:\n%s", err.LineNo, err.CharNo(), err.Msg)
 	}
-	pos := 0
-	for _, c := range comments {
-		fmt.Print(src[pos:c.Offset])
-		pos = c.Offset
-		color.HiBlack(src[c.Offset:c.Offset + c.Count])
-		pos += c.Count
-		if c.IsLineComment {
-			fmt.Print(util.IndentOnly(c.StartOfLine(src)))
-			color.Yellow("; ^ that is a comment")
+	for _, t := range tokens {
+		switch v := t.(type) {
+		case neut.NewlineToken:
+			fmt.Printf("%s ", color.HiBlackString("\\n"))
+		case neut.StringToken:
+			fmt.Printf("%s ", color.HiGreenString(v.Literal))
+		case neut.IdentifierToken:
+			fmt.Printf("%s ", v.Name)
+		case neut.SymbolToken:
+			fmt.Printf("%s ", color.YellowString(string(v.Symbol)))
 		}
 	}
-	fmt.Print(src[pos:])
+	spew.Dump(neut.ParseFunctionType(&tokens))
 }

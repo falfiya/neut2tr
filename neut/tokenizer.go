@@ -5,37 +5,31 @@ import (
 	"strings"
 )
 
-type tokenType int
-
-const (
-	ttNewline    tokenType = iota
-	ttString     tokenType = iota
-	ttIdentifier tokenType = iota
-)
-
 type tokenizerError struct {
 	lexer.Pos
-	msg string
+	Msg string
 }
 
 type token any
 
-type newlineToken struct {
+type NewlineToken struct {
 	lexer.Pos
 }
 
-type stringToken struct {
+type StringToken struct {
 	lexer.Sel
+	Literal string
 }
 
-type identifierToken struct {
+// numbers are considered identifiers
+type IdentifierToken struct {
 	lexer.Sel
-	name string
+	Name string
 }
 
-type symbolToken struct {
+type SymbolToken struct {
 	lexer.Pos
-	symbol byte
+	Symbol byte
 }
 
 func isControlCharacter(c byte) bool {
@@ -46,7 +40,10 @@ func isControlCharacter(c byte) bool {
 // not allowed: ( ) [ ] { } " , ' ` ; | \
 var disallowed = []byte("()[]{}\",'`;|\\")
 
-func identifierDisallowed(c byte) bool {
+func identifierAllowed(c byte) bool {
+	if isControlCharacter(c) {
+		return false
+	}
 	for _, d := range disallowed {
 		if c == d {
 			return false
@@ -55,20 +52,16 @@ func identifierDisallowed(c byte) bool {
 	return true
 }
 
-func identifierAllowed(c byte) bool {
-	return !isControlCharacter(c) && !identifierDisallowed(c)
-}
-
 // splits a string into tokens
 // delimiters are any control characters, whitespace. this includes newlines
-func tokenize(s string) (tokens []token, te *tokenizerError) {
+func Tokenize(s string) (tokens []token, te *tokenizerError) {
 	lex := lexer.New(s)
 tokenLoop:
 	for lex.More() {
 		beg := lex.Pos()
 		c := lex.Pop()
 		if c == '\n' {
-			tokens = append(tokens, newlineToken{beg})
+			tokens = append(tokens, NewlineToken{beg})
 			continue tokenLoop
 		}
 		if isControlCharacter(c) {
@@ -76,11 +69,10 @@ tokenLoop:
 		}
 		// we're going to push a token
 		if c == '"' {
-			escaped := false
 		stringLoop:
 			for lex.More() {
 				c := lex.Pop()
-				if escaped {
+				if c == '\\' {
 					if lex.More() {
 						lex.Bump()
 						continue stringLoop
@@ -100,7 +92,7 @@ tokenLoop:
 				Pos:   beg,
 				Count: lex.Offset() - beg.Offset,
 			}
-			tokens = append(tokens, stringToken{sel})
+			tokens = append(tokens, StringToken{sel, s[beg.Offset:lex.Offset()]})
 			continue tokenLoop
 		}
 		if c == '#' {
@@ -115,27 +107,30 @@ tokenLoop:
 				goto tokenizeSymbol
 			}
 		}
-		{
-		identifierLoop:
+		if identifierAllowed(c) {
 			for {
-				if !identifierAllowed(c) {
-					break identifierLoop
-				}
 				if !lex.More() {
-					break identifierLoop
+					goto commitIdentifier
 				}
-				c = lex.Pop()
+				c = lex.Next()
+				if identifierAllowed(c) {
+					lex.Bump()
+					continue
+				} else {
+					goto commitIdentifier
+				}
 			}
+		commitIdentifier:
 			text := strings.ToLower(s[beg.Offset:lex.Offset()])
 			sel := lexer.Sel{
 				Pos:   beg,
 				Count: lex.Offset() - beg.Offset,
 			}
-			tokens = append(tokens, identifierToken{sel, text})
+			tokens = append(tokens, IdentifierToken{sel, text})
 			continue tokenLoop
 		}
 	tokenizeSymbol:
-		tokens = append(tokens, symbolToken{beg, c})
+		tokens = append(tokens, SymbolToken{beg, c})
 	}
 	return
 }

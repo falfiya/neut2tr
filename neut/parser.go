@@ -4,6 +4,7 @@ import "neutttr/lexer"
 
 type Node lexer.SelF
 
+/*
 // returns [](nil | TemplateNode | DeclarationNode | AnnotationNode)
 func parse(tokens []token) (meaningful []Node) {
 	// All valid NEU type info starts on the first token of a line.
@@ -315,13 +316,14 @@ typeResolved:
 }
 */
 
-// FunctionTypeNode | ListTypeNode | IdentifierNode
+// FunctionTypeNode | ListTypeNode | IdentifierToken | StringToken
 type TypeNode Node
+
 // or nil
-func parseType(ts *[]token) Node {
+func ParseType(ts *[]token) Node {
 	tokens := *ts
 
-	if maybeFunctionTypeNode := parseFunctionType(&tokens); maybeFunctionTypeNode != nil {
+	if maybeFunctionTypeNode := ParseFunctionType(&tokens); maybeFunctionTypeNode != nil {
 		commit(ts, tokens)
 		return maybeFunctionTypeNode
 	}
@@ -331,9 +333,14 @@ func parseType(ts *[]token) Node {
 		return maybeListTypeNode
 	}
 
-	if maybeIdentifier := parseIdentifier(&tokens); maybeIdentifier != nil {
+	if maybeIdentifier := get[IdentifierToken](&tokens); maybeIdentifier != nil {
 		commit(ts, tokens)
 		return maybeIdentifier
+	}
+
+	if maybeString := get[StringToken](&tokens); maybeString != nil {
+		commit(ts, tokens)
+		return maybeString
 	}
 
 	return nil
@@ -347,14 +354,14 @@ type FunctionTypeNode struct {
 	returnType TypeNode
 }
 
-func parseFunctionType(ts *[]token) *FunctionTypeNode {
+func ParseFunctionType(ts *[]token) *FunctionTypeNode {
 	tokens := *ts
 
-	maybeLeftBracket := get[symbolToken](&tokens)
+	maybeLeftBracket := get[SymbolToken](&tokens)
 	if maybeLeftBracket == nil {
 		return nil
 	}
-	if maybeLeftBracket.symbol != '[' {
+	if maybeLeftBracket.Symbol != '[' {
 		return nil
 	}
 
@@ -363,11 +370,11 @@ func parseFunctionType(ts *[]token) *FunctionTypeNode {
 		return nil
 	}
 
-	maybeRightBracket := get[symbolToken](&tokens)
+	maybeRightBracket := get[SymbolToken](&tokens)
 	if maybeRightBracket == nil {
 		return nil
 	}
-	if maybeRightBracket.symbol != ']' {
+	if maybeRightBracket.Symbol != ']' {
 		return nil
 	}
 
@@ -381,7 +388,7 @@ func parseFunctionInside(ts *[]token) *FunctionTypeNode {
 	maybeGeneric := parseFunctionGeneric(&tokens)
 
 	var params []TypeNode
-	maybeFirstType := parseType(&tokens)
+	maybeFirstType := ParseType(&tokens)
 	if maybeFirstType == nil {
 		return nil
 	}
@@ -391,61 +398,62 @@ func parseFunctionInside(ts *[]token) *FunctionTypeNode {
 		if len(tokens) == 0 {
 			return nil
 		}
-		if maybeArrow, ok := tokens[0].(identifierToken); ok {
-			if (maybeArrow.name == "->") {
+		if maybeArrow, ok := tokens[0].(IdentifierToken); ok {
+			if (maybeArrow.Name == "->") {
 				advance(&tokens)
 				break
 			}
 		}
-		maybeType := parseType(&tokens)
+		maybeType := ParseType(&tokens)
 		if maybeType == nil {
 			return nil
 		}
 		params = append(params, maybeType)
 	}
 
-	maybeReturnType := parseType(&tokens)
+	maybeReturnType := ParseType(&tokens)
 	if maybeReturnType == nil {
 		return nil
 	}
 
+	commit(ts, tokens)
 	sel := maybeFirstType.SelF().Select(maybeReturnType.SelF().End())
 	return &FunctionTypeNode{sel, maybeGeneric, params, maybeReturnType}
 }
 
 type FunctionGenericNode struct {
 	lexer.Sel
-	params []IdentifierNode
+	params []IdentifierToken
 }
 
 func parseFunctionGeneric(ts *[]token) *FunctionGenericNode {
 	tokens := *ts
 
-	open := get[symbolToken](&tokens)
+	open := get[SymbolToken](&tokens)
 	if open == nil {
 		return nil
 	}
-	if open.symbol != '{' {
+	if open.Symbol != '{' {
 		return nil
 	}
 
-	var params []IdentifierNode
+	var params []IdentifierToken
 	var closingBraceEnd int
 	for {
 		if len(tokens) == 0 {
 			return nil
 		}
 		switch v := tokens[0].(type) {
-		case symbolToken:
+		case SymbolToken:
 			// closing brace is the only allowed symbol
-			if v.symbol == '}' {
+			if v.Symbol == '}' {
 				closingBraceEnd = v.End()
 				goto commitFunctionGeneric
 			} else {
 				return nil
 			}
-		case identifierToken:
-			params = append(params, IdentifierNode{v.Sel})
+		case IdentifierToken:
+			params = append(params, v)
 		default:
 			return nil
 		}
@@ -466,7 +474,7 @@ type ListTypeNode struct {
 
 func parseListType(ts *[]token) *ListTypeNode {
 	tokens := *ts
-	maybeLeft := get[symbolToken](&tokens)
+	maybeLeft := get[SymbolToken](&tokens)
 
 	if maybeLeft == nil {
 		return nil
@@ -476,11 +484,11 @@ func parseListType(ts *[]token) *ListTypeNode {
 	var members []TypeNode
 
 	var close byte
-	if maybeLeft.symbol == '(' {
+	if maybeLeft.Symbol == '(' {
 		close = ')'
 		goto listInside
 	}
-	if maybeLeft.symbol == '[' {
+	if maybeLeft.Symbol == '[' {
 		close = ']'
 		goto listInside
 	}
@@ -491,14 +499,14 @@ listInside:
 		if len(tokens) == 0 {
 			return nil
 		}
-		if maybeClosingSymbol, ok := tokens[0].(symbolToken); ok {
-			if maybeClosingSymbol.symbol == close {
+		if maybeClosingSymbol, ok := tokens[0].(SymbolToken); ok {
+			if maybeClosingSymbol.Symbol == close {
 				advance(&tokens)
 				endOffset = maybeClosingSymbol.End()
 				goto listFinished
 			}
 		}
-		maybeType := parseType(&tokens)
+		maybeType := ParseType(&tokens)
 		if maybeType == nil {
 			return nil
 		}
@@ -513,65 +521,48 @@ listFinished:
 	}
 }
 
-type IdentifierNode struct {
-	lexer.Sel
-}
-
-func parseIdentifier(ts *[]token) *IdentifierNode {
-	tokens := *ts
-	if len(tokens) == 0 {
-		return nil
-	}
-	current, ok := tokens[0].(identifierToken)
-	if ok {
-		commit(ts, tokens[1:])
-		return &IdentifierNode{current.Sel}
-	}
-	return nil
-}
-
 type ArticleNode struct {
 	lexer.Sel
 }
 
-func parseArticle(ts *[]token) *ArticleNode {
-	tokens := *ts
-	maybeArticleToken := get[identifierToken](&tokens)
-	if maybeArticleToken.name == "a" || maybeArticleToken.name == "an" {
-		commit(ts, tokens)
-		return &ArticleNode{maybeArticleToken.Sel}
-	} else {
-		return nil
-	}
-}
+// func parseArticle(ts *[]token) *ArticleNode {
+// 	tokens := *ts
+// 	maybeArticleToken := get[IdentifierToken](&tokens)
+// 	if maybeArticleToken.Name == "a" || maybeArticleToken.Name == "an" {
+// 		commit(ts, tokens)
+// 		return &ArticleNode{maybeArticleToken.Sel}
+// 	} else {
+// 		return nil
+// 	}
+// }
 
 // either (true, nil, nil) (false, *T, nil) or (false, nil, token)
-func getOrOther[T token](ts *[]token) (empty bool, target *T, other token) {
-	tokens := *ts
-	if len(tokens) == 0 {
-		empty = true
-		return
-	}
-	first := tokens[0]
-	maybeTarget, isTarget := first.(T)
-	if isTarget {
-		target = &maybeTarget
-	} else {
-		other = first
-	}
-	return
-}
+// func getOrOther[T token](ts *[]token) (empty bool, target *T, other token) {
+// 	tokens := *ts
+// 	if len(tokens) == 0 {
+// 		empty = true
+// 		return
+// 	}
+// 	first := tokens[0]
+// 	maybeTarget, isTarget := first.(T)
+// 	if isTarget {
+// 		target = &maybeTarget
+// 	} else {
+// 		other = first
+// 	}
+// 	return
+// }
 
 func get[T token](ts *[]token) *T {
 	tokens := *ts
 	if len(tokens) == 0 {
 		return nil
 	}
-	maybeIdentifierToken, ok := tokens[0].(T)
+	maybeToken, ok := tokens[0].(T)
 	if ok {
 		advance(&tokens)
 		commit(ts, tokens)
-		return &maybeIdentifierToken
+		return &maybeToken
 	}
 	return nil
 }

@@ -31,7 +31,8 @@
 <type> ::=
    | <function-type>
    | <list-type>
-   | <word>
+   | <identifier>
+   | <string>
 <function-type> ::= "[" <function-type-inside> "]"
 <function-inside> ::= <function-generic>? <type>+ "->" <type>
 <function-generic> ::= "{" <word>+ "}"

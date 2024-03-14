@@ -81,7 +81,7 @@ func Comments(s string) (comments []Comment, pe *ParseError) {
 					}
 					comments = append(comments, Comment{
 						IsLineComment: false,
-						Sel: beg.SelectTill(lex.Offset()),
+						Sel: beg.Select(lex.Offset()),
 					})
 				}
 			}
@@ -91,7 +91,7 @@ func Comments(s string) (comments []Comment, pe *ParseError) {
 			}
 			comments = append(comments, Comment{
 				IsLineComment: true,
-				Sel: beg.SelectTill(lex.Offset()),
+				Sel: beg.Select(lex.Offset()),
 			})
 		}
 	}
