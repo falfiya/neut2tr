@@ -4,7 +4,7 @@
 #! ordered unions (<a> | <b> is different than <b> | <a>)
 
 <a> ::= "a" | "an"
-<word> ::= assumed
+<identifer> ::= builtin
 
 <comment> ::= (<meaningful> | <garbage>)*
 <garbage> ::= <anything> "\n"
@@ -15,18 +15,17 @@
 
 <template> ::= "template" ":"? "\n" <declaration>
 
-<declaration> ::= <a> <declaration-target> "is" (<sum-type-rhs> | <alias-rhs>)
-<declaration-target> ::=
-   | <declaration-generic>
-   | <word>
-<declaration-generic> ::=
-   | "(" <word> <word>+ ")"
-   | "[" <word> <word>+ ")"
-<sum-type-rhs> ::= "one" "of" <sum-type-element> <sum-type-element>+
-<sum-type-element> ::= "\n" "-" <type>
-<alias-rhs> ::= <a>? <type>
+<declaration> ::=
+   <a> (<declaration-generic> | <identifier>) "is" (<sum-type> | <alias>)
 
-<annotation> ::= <word> ":" <function-type-inside> | <type>
+<declaration-generic> ::=
+   | "(" <identifer> <identifer>+ ")"
+   | "[" <identifer> <identifer>+ ")"
+<sum-type> ::= "one" "of" <sum-type-element> <sum-type-element>+
+<sum-type-term> ::= "\n" "-" <type>
+<alias> ::= <a>? <type>
+
+<annotation> ::= <identifer> ":" <function-type-inside> | <type>
 
 <type> ::=
    | <function-type>
@@ -35,7 +34,7 @@
    | <string>
 <function-type> ::= "[" <function-type-inside> "]"
 <function-inside> ::= <function-generic>? <type>+ "->" <type>
-<function-generic> ::= "{" <word>+ "}"
+<function-generic> ::= "{" <identifier>+ "}"
 <list-type> ::=
    | "(" <type>* ")"
    | "[" <type>* "]"

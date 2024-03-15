@@ -4,42 +4,39 @@ import "neutttr/lexer"
 
 type Node lexer.SelF
 
-/*
 // returns [](nil | TemplateNode | DeclarationNode | AnnotationNode)
-func parse(tokens []token) (meaningful []Node) {
+func Parse(tokens []token) []Node {
+	var meaningful []Node
 	// All valid NEU type info starts on the first token of a line.
 	for len(tokens) > 0 {
-		maybeMeaningful := parseMeaningful(&tokens)
-		if maybeMeaningful != nil {
+		if maybeMeaningful := parseMeaningful(&tokens); maybeMeaningful != nil {
 			meaningful = append(meaningful, maybeMeaningful)
 			continue
-		} else {
-			// If we encounter garbage at the start of a line, ignore the rest of the
-			// line.
-			for len(tokens) > 0 {
-				_, isNewline := tokens[0].(newlineToken)
-				tokens = tokens[1:]
-				if isNewline {
-					break
-				}
+		}
+		// kill all tokens until another newline
+	inner:
+		for len(tokens) > 0 {
+			_, isNewline := tokens[0].(NewlineToken)
+			advance(&tokens)
+			if isNewline {
+				break inner
 			}
 		}
 	}
-	return
+	return meaningful
 }
 
 // returns nil | TemplateNode | DeclarationNode | AnnotationNode
-func parseMeaningful(ts *[]token) (node Node) {
-	node = parseTemplate(ts)
-	if node != nil {
-		return
+func parseMeaningful(ts *[]token) Node {
+	if temp := parseTemplate(ts); temp != nil {
+		return temp
 	}
-	node = parseDeclaration(ts)
-	if node != nil {
-		return
+
+	if decl := parseDeclaration(ts); decl != nil {
+		return decl
 	}
-	node = parseAnnotation(ts)
-	return
+
+	return ParseAnnotation(ts)
 }
 
 type TemplateNode struct {
@@ -47,15 +44,14 @@ type TemplateNode struct {
 	decl DeclarationNode
 }
 
-/*
 func parseTemplate(ts *[]token) *TemplateNode {
 	tokens := *ts
-	maybeTemplate := getIdentifierToken(&tokens)
+
+	maybeTemplate := get[IdentifierToken](&tokens)
 	if maybeTemplate == nil {
 		return nil
 	}
-
-	if maybeTemplate.name != "template" && maybeTemplate.name != "template:" {
+	if maybeTemplate.Name != "template" && maybeTemplate.Name != "template:" {
 		return nil
 	}
 
@@ -65,138 +61,147 @@ func parseTemplate(ts *[]token) *TemplateNode {
 	}
 
 	commit(ts, tokens)
-	return &TemplateNode{
-		sel: maybeTemplate.Select(),
-		decl:     *decl,
-	}
+	return &TemplateNode{maybeTemplate.Select(decl.End()), *decl}
 }
 
 type DeclarationNode struct {
 	lexer.Sel
 	// IdentifierNode | DeclarationGenericTargetNode
-	target Node
-	rhs    Node
+	Target Node
+	// SumTypeNode | AliasNode
+	Value Node
 }
 
 func parseDeclaration(ts *[]token) *DeclarationNode {
 	tokens := *ts
+
 	article1 := parseArticle(&tokens)
 	if article1 == nil {
 		return nil
 	}
-	target := parseDeclarationTarget(&tokens)
-	if target == nil {
+
+	var target Node
+	if generic := parseGenericTarget(&tokens); generic != nil {
+		target = generic
+	} else if ident := get[IdentifierToken](&tokens); ident != nil {
+		target = ident
+	} else {
 		return nil
 	}
-	is := parseExactString(&tokens, "is")
-	if is == nil {
+
+	maybeIs := get[IdentifierToken](&tokens)
+	if maybeIs.Name != "is" {
 		return nil
 	}
 
-	var rhs Node
-	rhs = parseSumTypeRhs(&tokens)
-	if rhs != nil {
-		goto commitDeclaration
-	}
-	rhs = parseAliasRhs(&tokens)
-	if rhs != nil {
-		goto commitDeclaration
-	}
-	// neither worked
-	return nil
-commitDeclaration:
-	*ts = tokens
-	return &DeclarationNode{
-		NodeBase: newNodeBase(article1, rhs),
-		target:   target,
-		rhs:      rhs,
-	}
-}
-
-type DeclarationGenericTargetNode struct {
-	NodeBase
-	target IdentifierNode
-	params []IdentifierNode
-}
-
-func parseDeclarationTarget(ts *[]token) Node {
-	generic := parseDeclarationGenericTarget(ts)
-	if generic != nil {
-		return generic
-	}
-	target := parseIdentifier(ts)
-	if target == nil {
+	var value Node
+	if sum := parseSumType(&tokens); sum != nil {
+		value = sum
+	} else if alias := parseAlias(&tokens); alias != nil {
+		value = alias
+	} else {
 		return nil
 	}
-	return target
+
+	commit(ts, tokens)
+	sel := article1.Select(value.SelF().End())
+	return &DeclarationNode{sel, target, value}
 }
 
-func parseDeclarationGenericTarget(ts *[]token) *DeclarationGenericTargetNode {
+type GenericTargetNode struct {
+	lexer.Sel
+	target IdentifierToken
+	params []IdentifierToken
+}
+
+func parseGenericTarget(ts *[]token) *GenericTargetNode {
 	tokens := *ts
 	// a declaration target looks like
 	// (Listof X)
-	// There should be at least three tokens
-	if len(tokens) < 3 {
+	// [Foo Xgeneric]
+	// There should be at least four tokens
+	if len(tokens) < 4 {
 		return nil
 	}
-	open := tokens[0]
-	var closeText string
-	if open.text == "(" {
-		closeText = ")"
-		goto genericDetected
+
+	open := get[SymbolToken](&tokens)
+	var closeSymbol byte
+	if open.Symbol == '(' {
+		closeSymbol = ')'
+	} else if open.Symbol == '[' {
+		closeSymbol = ']'
+	} else {
+		return nil
 	}
-	if open.text == "[" {
-		closeText = "]"
-		goto genericDetected
+
+	target := get[IdentifierToken](&tokens)
+	if target == nil {
+		return nil
 	}
-	// generic not detected
-	return nil
-genericDetected:
-	target := tokens[1]
-	tokens = tokens[2:]
-	var current token
-	var params []IdentifierNode
+
+	// need at least one generic parameter
+	param1 := get[IdentifierToken](&tokens)
+	if param1 == nil {
+		return nil
+	}
+
+	var closingSymbolEnd int
+	params := []IdentifierToken{*param1}
 	for {
 		if len(tokens) == 0 {
 			return nil
 		}
-		current = tokens[0]
-		tokens = tokens[1:]
-		if current.text == closeText {
-			// when we encounter the closing token, current will still exist
-			// as the last token
-			break
+		current := tokens[0]
+		advance(&tokens)
+		switch v := current.(type) {
+		case IdentifierToken:
+			params = append(params, v)
+		case SymbolToken:
+			if v.Symbol == closeSymbol {
+				closingSymbolEnd = v.End()
+				goto commitGenericTarget
+			} else {
+				return nil
+			}
+		default:
+			return nil
 		}
-		params = append(params, IdentifierNode{NodeBase{current.Sel}})
 	}
-	*ts = tokens
-	return &DeclarationGenericTargetNode{
-		NodeBase: newNodeBase2(open, current),
-		target:   IdentifierNode{NodeBase{target.Sel}},
-		params:   params,
-	}
+
+commitGenericTarget:
+	commit(ts, tokens)
+	return &GenericTargetNode{open.Select(closingSymbolEnd), *target, params}
 }
 
-type SumTypeTerm struct {
-	NodeBase
-	terms []SumTypeElementNode
+type SumTypeNode struct {
+	lexer.Sel
+	one   IdentifierToken
+	of    IdentifierToken
+	terms []SumTypeTermNode
 }
 
 // ... one of
 // - x
 // - y
-func parseSumTypeRhs(ts *[]token) *SumTypeTerm {
-	// somewhat amusingly, this doesn't check for newlines in between terms.
-	// shhhhh don't tell!
+func parseSumType(ts *[]token) *SumTypeNode {
 	tokens := *ts
-	one := parseExactString(&tokens, "one")
+
+	one := get[IdentifierToken](&tokens)
 	if one == nil {
 		return nil
 	}
-	of := parseExactString(&tokens, "of")
+	if one.Name != "one" {
+		return nil
+	}
+	of := get[IdentifierToken](&tokens)
 	if of == nil {
 		return nil
 	}
+	if of.Name != "of" {
+		return nil
+	}
+
+	// must have at least two terms
 	term1 := parseSumTypeTerm(&tokens)
 	if term1 == nil {
 		return nil
@@ -205,7 +210,8 @@ func parseSumTypeRhs(ts *[]token) *SumTypeTerm {
 	if term2 == nil {
 		return nil
 	}
-	terms := []SumTypeElementNode{*term1, *term2}
+
+	terms := []SumTypeTermNode{*term1, *term2}
 	for {
 		optionalTerm := parseSumTypeTerm(&tokens)
 		if optionalTerm == nil {
@@ -214,73 +220,102 @@ func parseSumTypeRhs(ts *[]token) *SumTypeTerm {
 			terms = append(terms, *optionalTerm)
 		}
 	}
-	*ts = tokens
-	return &SumTypeTerm{
-		NodeBase: newNodeBase(one, terms[len(terms)-1]),
-		terms:    terms,
-	}
+
+	commit(ts, tokens)
+	sel := one.Select(terms[len(terms)-1].End())
+	return &SumTypeNode{sel, *one, *of, terms}
 }
 
-type SumTypeElementNode struct {
-	NodeBase
-	typeNode TypeNode
+type SumTypeTermNode struct {
+	lexer.Sel
+	TypeNode TypeNode
 }
 
-func parseSumTypeTerm(ts *[]token) *SumTypeElementNode {
+func parseSumTypeTerm(ts *[]token) *SumTypeTermNode {
 	tokens := *ts
-	entry := parseExactString(&tokens, "-")
-	if entry == nil {
+
+	newline := get[NewlineToken](&tokens)
+	if newline == nil {
 		return nil
 	}
 
-	typeNode := parseType(&tokens)
+	hyphen := get[IdentifierToken](&tokens)
+	if hyphen == nil {
+		return nil
+	}
+	if hyphen.Name != "-" {
+		return nil
+	}
+
+	typeNode := ParseType(&tokens)
 	if typeNode == nil {
 		return nil
 	}
 
-	*ts = tokens
-	return &SumTypeElementNode{
-		NodeBase: newNodeBase(entry, typeNode),
+	commit(ts, tokens)
+	return &SumTypeTermNode{
+		newline.Select(typeNode.SelF().End()),
+		typeNode,
 	}
 }
 
-type AliasRhsNode struct {
-	NodeBase
-	typeNode TypeNode
+type AliasNode struct {
+	lexer.Sel
+	Article  *ArticleNode
+	TypeNode TypeNode
 }
 
 // ... (a|an) x
-func parseAliasRhs(ts *[]token) *AliasRhsNode {
+func parseAlias(ts *[]token) *AliasNode {
 	tokens := *ts
 	// doesn't matter if that's nil
 	maybeArticle := parseArticle(&tokens)
 
-	typeNode := parseType(&tokens)
+	typeNode := ParseType(&tokens)
 	if typeNode == nil {
 		return nil
 	}
 
-	var nodeBase NodeBase
+	var sel lexer.Sel
 	if maybeArticle == nil {
-		nodeBase = typeNode.Base()
+		sel = typeNode.SelF()
 	} else {
-		nodeBase = newNodeBase(maybeArticle, typeNode)
+		sel = maybeArticle.Select(typeNode.SelF().End())
 	}
 
-	*ts = tokens
-	return &AliasRhsNode{
-		NodeBase: nodeBase,
-		typeNode: typeNode,
+	commit(ts, tokens)
+	return &AliasNode{
+		sel,
+		maybeArticle,
+		typeNode,
 	}
 }
-*/
+
+type ArticleNode struct {
+	lexer.Sel
+}
+
+func parseArticle(ts *[]token) *ArticleNode {
+	tokens := *ts
+	maybeArticleToken := get[IdentifierToken](&tokens)
+	if maybeArticleToken == nil {
+		return nil
+	}
+	if maybeArticleToken.Name == "a" || maybeArticleToken.Name == "an" {
+		commit(ts, tokens)
+		return &ArticleNode{maybeArticleToken.Sel}
+	} else {
+		return nil
+	}
+}
 
 type AnnotationNode struct {
 	lexer.Sel
-	target   IdentifierToken
+	target IdentifierToken
 	// not a pointer
 	typeNode TypeNode
 }
+
 // foo : bar
 func ParseAnnotation(ts *[]token) *AnnotationNode {
 	tokens := *ts
@@ -314,17 +349,6 @@ func ParseAnnotation(ts *[]token) *AnnotationNode {
 		target.Select(typeNode.SelF().End()),
 		*target,
 		typeNode,
-	}
-}
-
-func parseArticle(ts *[]token) *ArticleNode {
-	tokens := *ts
-	maybeArticleToken := get[IdentifierToken](&tokens)
-	if maybeArticleToken.Name == "a" || maybeArticleToken.Name == "an" {
-		commit(ts, tokens)
-		return &ArticleNode{maybeArticleToken.Sel}
-	} else {
-		return nil
 	}
 }
 
@@ -366,8 +390,8 @@ type FunctionTypeNode struct {
 	lexer.Sel
 	// or nil
 	maybeGeneric *FunctionGenericNode
-	paramTypes []TypeNode
-	returnType TypeNode
+	paramTypes   []TypeNode
+	returnType   TypeNode
 }
 
 func ParseFunctionType(ts *[]token) *FunctionTypeNode {
@@ -415,7 +439,7 @@ func parseFunctionInside(ts *[]token) *FunctionTypeNode {
 			return nil
 		}
 		if maybeArrow, ok := tokens[0].(IdentifierToken); ok {
-			if (maybeArrow.Name == "->") {
+			if maybeArrow.Name == "->" {
 				advance(&tokens)
 				break
 			}
@@ -532,36 +556,16 @@ listInside:
 listFinished:
 	commit(ts, tokens)
 	return &ListTypeNode{
-		Sel: maybeLeft.Select(endOffset),
+		Sel:     maybeLeft.Select(endOffset),
 		members: members,
 	}
 }
-
-type ArticleNode struct {
-	lexer.Sel
-}
-
-// either (true, nil, nil) (false, *T, nil) or (false, nil, token)
-// func getOrOther[T token](ts *[]token) (empty bool, target *T, other token) {
-// 	tokens := *ts
-// 	if len(tokens) == 0 {
-// 		empty = true
-// 		return
-// 	}
-// 	first := tokens[0]
-// 	maybeTarget, isTarget := first.(T)
-// 	if isTarget {
-// 		target = &maybeTarget
-// 	} else {
-// 		other = first
-// 	}
-// 	return
-// }
 
 // *****************************************************************************
 // General Purpose Parser Functions
 // *****************************************************************************
 
+// maybe we need another one of these for getting and ignoring newlines
 func get[T token](ts *[]token) *T {
 	tokens := *ts
 	if len(tokens) == 0 {

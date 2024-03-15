@@ -13,7 +13,7 @@ import (
 )
 
 func main() {
-	tokens, err := neut.Tokenize("fppbar : [hello -> (make-something with \"a string\")]")
+	tokens, err := neut.Tokenize("fppbar : {X} SExpr [Number -> X] [String -> X] [Boolean -> X] [Symbol -> X] -> [Wide-tree X]")
 	if err != nil {
 		errors.Errorf("Error at line %d, char %d:\n%s", err.LineNo, err.CharNo(), err.Msg)
 	}

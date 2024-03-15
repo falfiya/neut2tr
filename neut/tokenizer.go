@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-type tokenizerError struct {
+type TokenizerError struct {
 	lexer.Pos
 	Msg string
 }
@@ -54,7 +54,7 @@ func identifierAllowed(c byte) bool {
 
 // splits a string into tokens
 // delimiters are any control characters, whitespace. this includes newlines
-func Tokenize(s string) (tokens []token, te *tokenizerError) {
+func Tokenize(s string) (tokens []token, te *TokenizerError) {
 	lex := lexer.New(s)
 tokenLoop:
 	for lex.More() {
@@ -79,7 +79,7 @@ tokenLoop:
 						lex.Bump()
 						continue stringLoop
 					} else {
-						te = &tokenizerError{
+						te = &TokenizerError{
 							lex.Pos(),
 							"Expected character after string escape",
 						}
