@@ -1,7 +1,7 @@
 package neut
 
 import (
-	"neutttr/lexer"
+	"neut2tr/lexer"
 	"strings"
 )
 

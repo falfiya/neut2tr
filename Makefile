@@ -1,0 +1,5 @@
+run:
+	go $@ .
+
+build:
+	go $@

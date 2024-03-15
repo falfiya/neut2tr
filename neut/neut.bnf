@@ -28,10 +28,12 @@
 <annotation> ::= <identifer> ":" <function-type-inside> | <type>
 
 <type> ::=
+   | <quote>
    | <function-type>
    | <list-type>
    | <identifier>
    | <string>
+<quote> ::= "'" <type>
 <function-type> ::= "[" <function-type-inside> "]"
 <function-inside> ::= <function-generic>? <type>+ "->" <type>
 <function-generic> ::= "{" <identifier>+ "}"

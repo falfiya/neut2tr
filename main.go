@@ -2,18 +2,17 @@ package main
 
 import (
 	"fmt"
-	"neutttr/neut"
+	"neut2tr/neut"
 
-	// "neutttr/racket"
-	// "neutttr/util"
+	// "neut2tr/racket"
+	// "neut2tr/util"
 	// "os"
 	"github.com/cockroachdb/errors"
-	"github.com/davecgh/go-spew/spew"
 	"github.com/fatih/color"
 )
 
 func main() {
-	tokens, err := neut.Tokenize("fppbar : {X} SExpr [Number -> X] [String -> X] [Boolean -> X] [Symbol -> X] -> [Wide-tree X]")
+	tokens, err := neut.Tokenize("A (Listof X) is one of\n-'()\n-(cons X [Listof X])")
 	if err != nil {
 		errors.Errorf("Error at line %d, char %d:\n%s", err.LineNo, err.CharNo(), err.Msg)
 	}
@@ -29,5 +28,9 @@ func main() {
 			fmt.Printf("%s ", color.YellowString(string(v.Symbol)))
 		}
 	}
-	spew.Dump(neut.ParseAnnotation(&tokens))
+	fmt.Print("\n---\n")
+	meaningful := neut.Parse(tokens)
+	for _, m := range meaningful {
+		fmt.Print(m.Print())
+	}
 }

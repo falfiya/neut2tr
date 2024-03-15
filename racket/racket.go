@@ -1,7 +1,7 @@
 package racket
 
 import (
-	"neutttr/lexer"
+	"neut2tr/lexer"
 )
 
 type ParseError struct {
