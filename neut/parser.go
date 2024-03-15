@@ -9,6 +9,10 @@ type Node interface {
 	Print() string
 }
 
+// *****************************************************************************
+// Parse Meta
+// *****************************************************************************
+
 // returns [](nil | TemplateNode | DeclarationNode | AnnotationNode)
 func Parse(tokens []token) []Node {
 	var meaningful []Node
@@ -47,6 +51,10 @@ func parseMeaningful(ts *[]token) Node {
 
 	return nil
 }
+
+// *****************************************************************************
+// Higher-Level Syntax Elements
+// *****************************************************************************
 
 type TemplateNode struct {
 	lexer.Sel

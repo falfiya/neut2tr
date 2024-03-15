@@ -14,6 +14,24 @@ type Comment struct {
 	IsLineComment bool
 }
 
+func CommentGroups(s string) ([]lexer.Sel, *ParseError) {
+	comments, pe := Comments(s)
+	groups := Grouper(comments)
+	return groups, pe
+}
+
+func Grouper(comments []Comment) (groups []lexer.Sel) {
+	// join selections if they touch
+	if len(comments) == 0 {
+		return
+	}
+	if len(comments) == 1 {
+		groups = append(groups, comments[0].Sel)
+		return
+	}
+	// TODO
+}
+
 func Comments(s string) (comments []Comment, pe *ParseError) {
 	lex := lexer.New(s)
 	for lex.More() {

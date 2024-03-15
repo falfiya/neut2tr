@@ -2,16 +2,36 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"neut2tr/neut"
+	"neut2tr/racket"
+	"os"
 
-	// "neut2tr/racket"
-	// "neut2tr/util"
-	// "os"
 	"github.com/cockroachdb/errors"
 	"github.com/fatih/color"
 )
 
 func main() {
+	testCommentFinder()
+	// testParser()
+}
+
+func testCommentFinder() {
+	dat, err := os.ReadFile("examples/homework_10.rkt")
+	file := string(dat)
+	if err != nil {
+		log.Fatal(err)
+	}
+	comments, err2 := racket.Comments(file)
+	if err2 != nil {
+		log.Fatal(err)
+	}
+	for i, c := range comments {
+		fmt.Printf("%d: %s\n", i, file[c.Offset: c.End()])
+	}
+}
+
+func testParser() {
 	tokens, err := neut.Tokenize("A (Listof X) is one of\n-'()\n-(cons X [Listof X])")
 	if err != nil {
 		errors.Errorf("Error at line %d, char %d:\n%s", err.LineNo, err.CharNo(), err.Msg)
@@ -34,3 +54,4 @@ func main() {
 		fmt.Print(m.Print())
 	}
 }
+

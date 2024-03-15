@@ -5,7 +5,7 @@ type Pos struct {
 	Offset int
 	// Line number (Zero-Indexed)
 	LineNo int
-	// Start of the line
+	// Offset of the first character of the line
 	LineAt int
 }
 
@@ -39,6 +39,7 @@ func (s Sel) End() int {
 	return s.Offset + s.Count
 }
 
+// the offset after this position
 func (p Pos) End() int {
 	return p.Offset + 1
 }

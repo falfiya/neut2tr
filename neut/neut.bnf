@@ -5,9 +5,10 @@
 
 <a> ::= "a" | "an"
 <identifer> ::= builtin
+<string> ::= builtin
 
 <comment> ::= (<meaningful> | <garbage>)*
-<garbage> ::= <anything> "\n"
+<garbage> ::= ... "\n"
 <meaningful> ::=
    | <template>
    | <declaration>
@@ -23,11 +24,12 @@
    | "[" <identifer> <identifer>+ ")"
 <sum-type> ::= "one" "of" <sum-type-element> <sum-type-element>+
 <sum-type-term> ::= "\n" "-" <type>
-<alias> ::= <a>? <type>
+<alias> ::= <not "one" "of"> <a>? <type>
 
 <annotation> ::= <identifer> ":" <function-type-inside> | <type>
 
 <type> ::=
+   | "\n" <type>
    | <quote>
    | <function-type>
    | <list-type>
@@ -35,8 +37,8 @@
    | <string>
 <quote> ::= "'" <type>
 <function-type> ::= "[" <function-type-inside> "]"
-<function-inside> ::= <function-generic>? <type>+ "->" <type>
-<function-generic> ::= "{" <identifier>+ "}"
+<function-inside> ::= <function-generic>? <type>+ "\n" "->" <type>
+<function-generic> ::= "{" ("\n"? <identifier>)+ "\n" "}"
 <list-type> ::=
    | "(" <type>* ")"
    | "[" <type>* "]"
