@@ -4,39 +4,29 @@ import (
 	"neut2tr/lexer"
 )
 
+type CommentType int
+
+const (
+	CtLine CommentType = iota
+	CtMultiLine
+	CtBlock
+)
+
 type ParseError struct {
 	lexer.Pos
-	Msg   string
+	Msg string
 }
 
 type Comment struct {
-	lexer.Sel
-	IsLineComment bool
+	Ct   CommentType
+	Text string
 }
 
-func CommentGroups(s string) ([]lexer.Sel, *ParseError) {
-	comments, pe := Comments(s)
-	groups := Grouper(comments)
-	return groups, pe
-}
-
-func Grouper(comments []Comment) (groups []lexer.Sel) {
-	// join selections if they touch
-	if len(comments) == 0 {
-		return
-	}
-	if len(comments) == 1 {
-		groups = append(groups, comments[0].Sel)
-		return
-	}
-	// TODO
-}
-
-func Comments(s string) (comments []Comment, pe *ParseError) {
+func ExtractComments(s string) (comments []Comment, pe *ParseError) {
 	lex := lexer.New(s)
 	for lex.More() {
 		beg := lex.Pos()
-		c := lex.Next()
+		c := lex.Current()
 		lex.Bump()
 		switch c {
 		case '"':
@@ -49,7 +39,7 @@ func Comments(s string) (comments []Comment, pe *ParseError) {
 					pe.Msg = "Expected \" but instead saw EOF"
 					return
 				}
-				c := lex.Next()
+				c := lex.Current()
 				lex.Bump()
 				if escaped {
 					escaped = false
@@ -64,39 +54,46 @@ func Comments(s string) (comments []Comment, pe *ParseError) {
 			}
 		case '#':
 			if lex.More() {
-				c := lex.Next()
+				c := lex.Current()
 				lex.Bump()
 				switch c {
 				case '\\': // #\
 					// eat the \ plus one more character
 					lex.Bump()
 				case '|': // #|
-					// just want to point out that yes we could've used
-					// <3 nicey wicey recursion <3
-					// but a simple counter will suffice
+					textStart := lex.Offset()
 					nestLevel := 1
 					for nestLevel > 0 {
 						// eat every token that isn't either
 						// 	another #|
 						// 	a closing |#
+						potentialError := &ParseError{
+							Pos: lex.Pos(),
+							Msg: "Unexpected end of block comment!",
+						}
+
 						if lex.Done() {
-							pe = new(ParseError)
-							pe.Pos = lex.Pos()
-							pe.Msg = "Expected |# but instead saw EOF"
+							pe = potentialError
 							return
 						}
-						c2 := lex.Next()
+						c2 := lex.Current()
 						lex.Bump()
+
+						if lex.Done() {
+							pe = potentialError
+							return
+						}
+						c3 := lex.Current()
 						switch c2 {
 						case '#': // first byte is #
-							if lex.More() && lex.Next() == '|' {
+							if c3 == '|' {
 								// the second byte is |
 								// we have another block comment
 								lex.Bump()
 								nestLevel += 1
 							}
 						case '|': // first byte |
-							if lex.More() && lex.Next() == '#' {
+							if c3 == '#' {
 								// the second byte is #
 								// that's a closing block comment
 								lex.Bump()
@@ -104,20 +101,38 @@ func Comments(s string) (comments []Comment, pe *ParseError) {
 							}
 						}
 					}
-					comments = append(comments, Comment{
-						IsLineComment: false,
-						Sel: beg.Select(lex.Offset()),
-					})
+					// #| blah blah |# (some code)
+					//                ^ lex.Offset()
+					//              ^ desired textEnd
+					textEnd := lex.Offset() - 2
+					text := s[textStart:textEnd]
+					comments = append(comments, Comment{CtBlock, text})
 				}
 			}
 		case ';':
-			for lex.More() && lex.Next() != '\n' {
-				lex.Bump()
+			textStart := lex.Offset()
+			ct := CtLine
+			workingText := ""
+			for lex.More() {
+				if lex.Current() == '\n' {
+					lex.Bump()
+					workingText += s[textStart:lex.Offset()]
+					if lex.Done() {
+						goto commitComment
+					}
+					if lex.Current() != ';' {
+						goto commitComment
+					}
+					ct = CtMultiLine
+					lex.Bump()
+					textStart = lex.Offset()
+				} else {
+					lex.Bump()
+				}
 			}
-			comments = append(comments, Comment{
-				IsLineComment: true,
-				Sel: beg.Select(lex.Offset()),
-			})
+		commitComment:
+			// the Sel does not include the newline
+			comments = append(comments, Comment{ct, workingText})
 		}
 	}
 	return

@@ -14,7 +14,7 @@
    | <declaration>
    | <annotation>
 
-<template> ::= "template" ":"? "\n" <declaration>
+<template> ::= "template" ":"? *"\n" (<declaration> | <annotation>
 
 <declaration> ::=
    <a> (<declaration-generic> | <identifier>) "is" (<sum-type> | <alias>)
@@ -29,16 +29,15 @@
 <annotation> ::= <identifer> ":" <function-type-inside> | <type>
 
 <type> ::=
-   | "\n" <type>
    | <quote>
    | <function-type>
    | <list-type>
    | <identifier>
    | <string>
-<quote> ::= "'" <type>
-<function-type> ::= "[" <function-type-inside> "]"
-<function-inside> ::= <function-generic>? <type>+ "\n" "->" <type>
-<function-generic> ::= "{" ("\n"? <identifier>)+ "\n" "}"
+<quote> ::= "'" "\n"* <type>
+<function-type> ::= "[" "\n"* <function-type-inside> "\n"* "]"
+<function-inside> ::= <function-generic>? <type>+ "->" "\n"* <type>
+<function-generic> ::= "{" <identifier> "}" "\n"*
 <list-type> ::=
-   | "(" <type>* ")"
-   | "[" <type>* "]"
+   | "(" ("\n"* <type>)* "\n"* ")"
+   | "[" ("\n"* <type>)* "\n"* "]"

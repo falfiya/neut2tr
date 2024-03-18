@@ -21,35 +21,21 @@ func (lex Lexer) More() bool {
 }
 
 func (lex Lexer) Done() bool {
-	return !lex.More()
+	return lex.offset >= len(lex.source)
 }
 
-func (lex Lexer) Next() byte {
+// always call lex.More or lex.Done before calling this
+func (lex Lexer) Current() byte {
 	return lex.source[lex.offset]
 }
 
 // moves the lexer forward one byte
 func (lex *Lexer) Bump() {
-	switch lex.Next() {
+	switch lex.Current() {
 	case '\n':
 		lex.lineNo += 1
 		// the next line starts after the \n char
 		lex.lineAt = lex.offset + 1
 	}
 	lex.offset += 1
-}
-
-func (lex Lexer) Copy() Lexer {
-	return Lexer{
-		source: lex.source,
-		offset: lex.offset,
-		lineAt: lex.lineAt,
-		lineNo: lex.lineNo,
-	}
-}
-
-func (lex Lexer) Peek() (lexOut Lexer) {
-	lexOut = lex.Copy()
-	lexOut.Bump()
-	return
 }

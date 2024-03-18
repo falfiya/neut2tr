@@ -18,7 +18,7 @@ func reindent(s string, times int) string {
 func (t TemplateNode) Print() string {
 	return "" +
 		"TemplateNode {\n" +
-		reindent(t.decl.Print(), 1) +
+		reindent(t.contents.Print(), 1) +
 		"}\n"
 }
 
@@ -31,7 +31,7 @@ func (d DeclarationNode) Print() string {
 }
 
 func (g GenericTargetNode) Print() string {
-	params := "<" + g.params[0].Name
+	params := "<" + g.params[0].CmpName
 	for _, p := range g.params[1:] {
 		params += ", " + p.Print()
 	}

@@ -9,12 +9,20 @@ type Node interface {
 	Print() string
 }
 
+func Parse(s string) ([]Node, *TokenizerError) {
+	tokens, te := Tokenize(s)
+	if te != nil {
+		return nil, te
+	}
+	return parseTokens(tokens), nil
+}
+
 // *****************************************************************************
 // Parse Meta
 // *****************************************************************************
 
 // returns [](nil | TemplateNode | DeclarationNode | AnnotationNode)
-func Parse(tokens []token) []Node {
+func parseTokens(tokens []token) []Node {
 	var meaningful []Node
 	// All valid NEU type info starts on the first token of a line.
 	for len(tokens) > 0 {
@@ -58,7 +66,8 @@ func parseMeaningful(ts *[]token) Node {
 
 type TemplateNode struct {
 	lexer.Sel
-	decl DeclarationNode
+	// DeclarationNode | AnnotationNode
+	contents Node
 }
 
 func parseTemplate(ts *[]token) *TemplateNode {
@@ -68,17 +77,25 @@ func parseTemplate(ts *[]token) *TemplateNode {
 	if maybeTemplate == nil {
 		return nil
 	}
-	if maybeTemplate.Name != "template" && maybeTemplate.Name != "template:" {
+	if maybeTemplate.CmpName != "template" && maybeTemplate.CmpName != "template:" {
 		return nil
 	}
 
-	decl := parseDeclaration(&tokens)
-	if decl == nil {
-		return nil
-	}
+	allowNewlines(&tokens)
 
+	var contents Node
+	if decl := parseDeclaration(&tokens); decl != nil {
+		contents = decl
+		goto commitTemplate
+	}
+	if anno := parseAnnotation(&tokens); anno != nil {
+		contents = anno
+		goto commitTemplate
+	}
+	return nil
+commitTemplate:
 	commit(ts, tokens)
-	return &TemplateNode{maybeTemplate.Select(decl.End()), *decl}
+	return &TemplateNode{maybeTemplate.Select(contents.SelF().End()), contents}
 }
 
 type DeclarationNode struct {
@@ -107,7 +124,11 @@ func parseDeclaration(ts *[]token) *DeclarationNode {
 	}
 
 	maybeIs := get[IdentifierToken](&tokens)
-	if maybeIs.Name != "is" {
+	if maybeIs == nil {
+		return nil
+	}
+
+	if maybeIs.CmpName != "is" {
 		return nil
 	}
 
@@ -148,6 +169,10 @@ func parseGenericTarget(ts *[]token) *GenericTargetNode {
 	}
 
 	open := get[SymbolToken](&tokens)
+	if open == nil {
+		return nil
+	}
+
 	var closeSymbol byte
 	if open.Symbol == '(' {
 		closeSymbol = ')'
@@ -208,14 +233,14 @@ func shouldParseSumType(ts *[]token) bool {
 	if one == nil {
 		return false
 	}
-	if one.Name != "one" {
+	if one.CmpName != "one" {
 		return false
 	}
 	of := get[IdentifierToken](&tokens)
 	if of == nil {
 		return false
 	}
-	if of.Name != "of" {
+	if of.CmpName != "of" {
 		return false
 	}
 	commit(ts, tokens)
@@ -269,7 +294,7 @@ func parseSumTypeTerm(ts *[]token) *SumTypeTermNode {
 	if hyphen == nil {
 		return nil
 	}
-	if hyphen.Name != "-" {
+	if hyphen.CmpName != "-" {
 		return nil
 	}
 
@@ -327,7 +352,7 @@ func parseArticle(ts *[]token) *ArticleNode {
 	if maybeArticleToken == nil {
 		return nil
 	}
-	if maybeArticleToken.Name == "a" || maybeArticleToken.Name == "an" {
+	if maybeArticleToken.CmpName == "a" || maybeArticleToken.CmpName == "an" {
 		commit(ts, tokens)
 		return &ArticleNode{maybeArticleToken.Sel}
 	} else {
@@ -355,7 +380,7 @@ func parseAnnotation(ts *[]token) *AnnotationNode {
 	if maybeColon == nil {
 		return nil
 	}
-	if maybeColon.Name != ":" {
+	if maybeColon.CmpName != ":" {
 		return nil
 	}
 
@@ -425,16 +450,24 @@ type QuoteNode struct {
 func parseQuote(ts *[]token) *QuoteNode {
 	tokens := *ts
 
+	allowNewlines(&tokens)
+
 	maybeQuote := get[SymbolToken](&tokens)
-	if maybeQuote != nil && maybeQuote.Symbol == '\'' {
-		maybeType := parseType(&tokens)
-		if maybeType != nil {
-			commit(ts, tokens)
-			return &QuoteNode{maybeQuote.Select(maybeType.SelF().End()), maybeType}
-		}
+	if maybeQuote == nil {
+		return nil
 	}
 
-	return nil
+	if maybeQuote.Symbol != '\'' {
+		return nil
+	}
+
+	maybeType := parseType(&tokens)
+	if maybeType == nil {
+		return nil
+	}
+
+	commit(ts, tokens)
+	return &QuoteNode{maybeQuote.Select(maybeType.SelF().End()), maybeType}
 }
 
 type FunctionNode struct {
@@ -456,10 +489,14 @@ func parseFunction(ts *[]token) *FunctionNode {
 		return nil
 	}
 
+	allowNewlines(&tokens)
+
 	inside := parseFunctionInside(&tokens)
 	if inside == nil {
 		return nil
 	}
+
+	allowNewlines(&tokens)
 
 	maybeRightBracket := get[SymbolToken](&tokens)
 	if maybeRightBracket == nil {
@@ -476,12 +513,21 @@ func parseFunction(ts *[]token) *FunctionNode {
 func parseFunctionInside(ts *[]token) *FunctionNode {
 	tokens := *ts
 
+	var firstSel lexer.Sel
+
 	maybeGeneric := parseFunctionGeneric(&tokens)
+	if maybeGeneric != nil {
+		allowNewlines(&tokens)
+		firstSel = maybeGeneric.Sel
+	}
 
 	var params []TypeNode
 	maybeFirstType := parseType(&tokens)
 	if maybeFirstType == nil {
 		return nil
+	}
+	if maybeGeneric == nil {
+		firstSel = maybeFirstType.SelF()
 	}
 	params = append(params, maybeFirstType)
 
@@ -490,7 +536,7 @@ func parseFunctionInside(ts *[]token) *FunctionNode {
 			return nil
 		}
 		if maybeArrow, ok := tokens[0].(IdentifierToken); ok {
-			if maybeArrow.Name == "->" {
+			if maybeArrow.CmpName == "->" {
 				advance(&tokens)
 				break
 			}
@@ -502,13 +548,15 @@ func parseFunctionInside(ts *[]token) *FunctionNode {
 		params = append(params, maybeType)
 	}
 
+	allowNewlines(&tokens)
+
 	maybeReturnType := parseType(&tokens)
 	if maybeReturnType == nil {
 		return nil
 	}
 
 	commit(ts, tokens)
-	sel := maybeFirstType.SelF().Select(maybeReturnType.SelF().End())
+	sel := firstSel.Select(maybeReturnType.SelF().End())
 	return &FunctionNode{sel, maybeGeneric, params, maybeReturnType}
 }
 
@@ -589,6 +637,7 @@ func parseList(ts *[]token) *ListNode {
 
 listInside:
 	for {
+		allowNewlines(&tokens)
 		if len(tokens) == 0 {
 			return nil
 		}
@@ -617,6 +666,14 @@ listFinished:
 // *****************************************************************************
 // General Purpose Parser Functions
 // *****************************************************************************
+func allowNewlines(ts *[]token) {
+	for {
+		maybeNewline := get[NewlineToken](ts)
+		if maybeNewline == nil {
+			break
+		}
+	}
+}
 
 // maybe we need another one of these for getting and ignoring newlines
 func get[T token](ts *[]token) *T {
