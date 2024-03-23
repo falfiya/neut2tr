@@ -26,6 +26,6 @@
 
 ; generate-next : [Listof Real] -> [String -> Real]
 
-; map : (X Y) [X -> Y] [Listof X] -> [Listof Y]
+; map : {X Y} [X -> Y] [Listof X] -> [Listof Y]
 
 ; foldr : {X Y} [X Y -> Y] Y [Listof X] -> Y
