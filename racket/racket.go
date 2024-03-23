@@ -18,6 +18,7 @@ type ParseError struct {
 }
 
 type Comment struct {
+	lexer.Sel
 	Ct   CommentType
 	Text string
 }
@@ -106,7 +107,7 @@ func ExtractComments(s string) (comments []Comment, pe *ParseError) {
 					//              ^ desired textEnd
 					textEnd := lex.Offset() - 2
 					text := s[textStart:textEnd]
-					comments = append(comments, Comment{CtBlock, text})
+					comments = append(comments, Comment{beg.Select(textEnd), CtBlock, text})
 				}
 			}
 		case ';':
@@ -131,8 +132,7 @@ func ExtractComments(s string) (comments []Comment, pe *ParseError) {
 				}
 			}
 		commitComment:
-			// the Sel does not include the newline
-			comments = append(comments, Comment{ct, workingText})
+			comments = append(comments, Comment{beg.Select(lex.Offset()), ct, workingText})
 		}
 	}
 	return

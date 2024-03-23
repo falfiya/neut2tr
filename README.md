@@ -1,3 +1,3 @@
 # neut2tr
 
-*NEU Types to Typed Racket*
+*Northeastern University Type Comments to Typed Racket*

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"neut2tr/neut"
+	"neut2tr/neut2tr"
 	"neut2tr/racket"
 	"os"
 )
@@ -14,7 +15,7 @@ func main() {
 }
 
 func testCommentFinder() {
-	dat, err := os.ReadFile("examples/examples.rkt")
+	dat, err := os.ReadFile("examples/homework_10.rkt")
 	file := string(dat)
 	if err != nil {
 		log.Fatal(err)
@@ -23,8 +24,7 @@ func testCommentFinder() {
 	if err2 != nil {
 		log.Fatal(err)
 	}
-	for i, c := range comments {
-		fmt.Printf("$$$$$$$$$$$$$$$$$ %3d $$$$$$$$$$$$$$$$$\n%s\n", i, c.Text)
+	for _, c := range comments {
 		testParser(c.Text)
 	}
 }
@@ -35,7 +35,9 @@ func testParser(s string) {
 		fmt.Print(err.Msg)
 	}
 	for _, m := range meaningful {
-		fmt.Print(m.Print())
+		sel := m.SelF()
+		fmt.Printf("%s\n", s[sel.Offset:sel.End()])
+		fmt.Printf("   %s\n", neut2tr.Rewrite(m))
 	}
 }
 

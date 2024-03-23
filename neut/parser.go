@@ -67,7 +67,7 @@ func parseMeaningful(ts *[]token) Node {
 type TemplateNode struct {
 	lexer.Sel
 	// DeclarationNode | AnnotationNode
-	contents Node
+	Contents Node
 }
 
 func parseTemplate(ts *[]token) *TemplateNode {
@@ -100,7 +100,7 @@ commitTemplate:
 
 type DeclarationNode struct {
 	lexer.Sel
-	// IdentifierToken | DeclarationGenericTargetNode
+	// IdentifierToken | GenericTargetNode
 	Target Node
 	// SumTypeNode | AliasNode
 	Value Node
@@ -154,8 +154,8 @@ func parseDeclaration(ts *[]token) *DeclarationNode {
 
 type GenericTargetNode struct {
 	lexer.Sel
-	target IdentifierToken
-	params []IdentifierToken
+	Target IdentifierToken
+	Params []IdentifierToken
 }
 
 func parseGenericTarget(ts *[]token) *GenericTargetNode {
@@ -223,7 +223,7 @@ commitGenericTarget:
 
 type SumTypeNode struct {
 	lexer.Sel
-	terms []SumTypeTermNode
+	Terms []SumTypeTermNode
 }
 
 func shouldParseSumType(ts *[]token) bool {
@@ -279,7 +279,7 @@ func parseSumType(ts *[]token) *SumTypeNode {
 
 type SumTypeTermNode struct {
 	lexer.Sel
-	TypeNode TypeNode
+	Value TypeNode
 }
 
 func parseSumTypeTerm(ts *[]token) *SumTypeTermNode {
@@ -313,7 +313,7 @@ func parseSumTypeTerm(ts *[]token) *SumTypeTermNode {
 type AliasNode struct {
 	lexer.Sel
 	Article  *ArticleNode
-	TypeNode TypeNode
+	Value TypeNode
 }
 
 // ... (a|an) x
@@ -362,9 +362,8 @@ func parseArticle(ts *[]token) *ArticleNode {
 
 type AnnotationNode struct {
 	lexer.Sel
-	target IdentifierToken
-	// not a pointer
-	value TypeNode
+	Target IdentifierToken
+	Value  TypeNode
 }
 
 // foo : bar
@@ -444,7 +443,7 @@ func parseType(ts *[]token) TypeNode {
 
 type QuoteNode struct {
 	lexer.Sel
-	typeNode TypeNode
+	Value TypeNode
 }
 
 func parseQuote(ts *[]token) *QuoteNode {
@@ -473,9 +472,9 @@ func parseQuote(ts *[]token) *QuoteNode {
 type FunctionNode struct {
 	lexer.Sel
 	// or nil
-	maybeGeneric *FunctionGenericNode
-	paramTypes   []TypeNode
-	returnType   TypeNode
+	MaybeGeneric *FunctionGenericNode
+	ParamTypes   []TypeNode
+	ReturnType   TypeNode
 }
 
 func parseFunction(ts *[]token) *FunctionNode {
@@ -562,7 +561,7 @@ func parseFunctionInside(ts *[]token) *FunctionNode {
 
 type FunctionGenericNode struct {
 	lexer.Sel
-	params []IdentifierToken
+	Params []IdentifierToken
 }
 
 func parseFunctionGeneric(ts *[]token) *FunctionGenericNode {
@@ -610,7 +609,9 @@ commitFunctionGeneric:
 
 type ListNode struct {
 	lexer.Sel
-	members []TypeNode
+	// one of ')' or ']'
+	Symbol  byte
+	Members []TypeNode
 }
 
 func parseList(ts *[]token) *ListNode {
@@ -659,7 +660,8 @@ listFinished:
 	commit(ts, tokens)
 	return &ListNode{
 		Sel:     maybeLeft.Select(endOffset),
-		members: members,
+		Symbol:  close,
+		Members: members,
 	}
 }
 

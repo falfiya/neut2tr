@@ -6,7 +6,7 @@
          "type": "go",
          "request": "launch",
          "mode": "auto",
-         "program": "${workspaceFolder}",
+         "program": "${workspaceFolder}/bin/neut2tr.exe",
       }
    ]
 }

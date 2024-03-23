@@ -1,5 +1,0 @@
-package neut
-
-func display() {
-	
-}
