@@ -2,7 +2,22 @@
 
 *Northeastern University Type Comments to typed/tacket*
 
-## Example NEU Type Comments
+This is a best-effort translator for Northeastern University Type Comments. It
+supports templates, generic declarations, aliases, annotations, sum types, and functions.
+
+## Usage
+
+```
+bin\neut2tr.exe filename.rkt
+   Converts NEU Type Comments to typed/racket and prints the result to stdout
+
+bin\neut2tr.exe filename.rkt output.rkt
+bin\neut2tr.exe filename.rkt -o output.rkt
+bin\neut2tr.exe filename.rkt --out output.rkt
+   Converts NEU Type Comments to typed/racket and writes to output.rkt
+```
+
+## Example NEU Type Comments & Translation
 
 ### Enum
 
