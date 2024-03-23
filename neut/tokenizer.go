@@ -2,6 +2,7 @@ package neut
 
 import (
 	"neut2tr/lexer"
+	"neut2tr/util"
 	"strings"
 )
 
@@ -33,16 +34,12 @@ type SymbolToken struct {
 	Symbol byte
 }
 
-func isControlCharacter(c byte) bool {
-	return c <= ' ' || c == 127
-}
-
 // https://docs.racket-lang.org/guide/symbols.html
 // not allowed: ( ) [ ] { } " , ' ` ; | \
 var disallowed = []byte("()[]{}\",'`;|\\")
 
 func identifierAllowed(c byte) bool {
-	if isControlCharacter(c) {
+	if util.IsControlCharacter(c) {
 		return false
 	}
 	for _, d := range disallowed {
@@ -66,7 +63,7 @@ tokenLoop:
 			tokens = append(tokens, NewlineToken{beg})
 			continue tokenLoop
 		}
-		if isControlCharacter(c) {
+		if util.IsControlCharacter(c) {
 			continue tokenLoop
 		}
 		// we're going to push a token

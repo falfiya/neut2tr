@@ -101,6 +101,14 @@ func (l ListNode) Print() string {
 	return out
 }
 
+func (b BooleanNode) Print() string {
+	if b.Value {
+		return "#t"
+	} else {
+		return "#f"
+	}
+}
+
 func (i IdentifierToken) Print() string {
 	return "#%" + i.Name
 }

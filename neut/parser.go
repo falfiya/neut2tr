@@ -1,6 +1,7 @@
 package neut
 
 import (
+	"fmt"
 	"neut2tr/lexer"
 )
 
@@ -240,9 +241,10 @@ func shouldParseSumType(ts *[]token) bool {
 	if of == nil {
 		return false
 	}
-	if of.CmpName != "of" {
+	if of.CmpName != "of" && of.CmpName != "of:" {
 		return false
 	}
+
 	commit(ts, tokens)
 	return true
 }
@@ -300,6 +302,7 @@ func parseSumTypeTerm(ts *[]token) *SumTypeTermNode {
 
 	typeNode := parseType(&tokens)
 	if typeNode == nil {
+		fmt.Print("died getting type\n")
 		return nil
 	}
 
@@ -426,6 +429,11 @@ func parseType(ts *[]token) TypeNode {
 	if maybeListTypeNode := parseList(&tokens); maybeListTypeNode != nil {
 		commit(ts, tokens)
 		return maybeListTypeNode
+	}
+
+	if maybeBoolean := parseBoolean(&tokens); maybeBoolean != nil {
+		commit(ts, tokens)
+		return maybeBoolean
 	}
 
 	if maybeIdentifier := get[IdentifierToken](&tokens); maybeIdentifier != nil {
@@ -663,6 +671,45 @@ listFinished:
 		Symbol:  close,
 		Members: members,
 	}
+}
+
+type BooleanNode struct {
+	lexer.Sel
+	Value bool
+}
+func parseBoolean(ts *[]token) *BooleanNode {
+	tokens := *ts
+
+	maybeHash := get[SymbolToken](&tokens)
+	if maybeHash == nil {
+		return nil
+	}
+	if maybeHash.Symbol != '#' {
+		return nil
+	}
+
+	maybeFT := get[IdentifierToken](&tokens)
+	if maybeFT == nil {
+		return nil
+	}
+
+	if maybeFT.CmpName == "f" {
+		commit(ts, tokens)
+		return &BooleanNode{
+			maybeHash.Select(maybeFT.End()),
+			false,
+		}
+	}
+
+	if maybeFT.CmpName == "t" {
+		commit(ts, tokens)
+		return &BooleanNode{
+			maybeHash.Select(maybeFT.End()),
+			true,
+		}
+	}
+
+	return nil
 }
 
 // *****************************************************************************

@@ -7,6 +7,7 @@ import (
 	"strings"
 )
 
+// None of these are user errors
 func Rewrite(node Node) string {
 	if node == nil {
 		log.Panicf("Cannot rewrite nil!")
@@ -67,6 +68,12 @@ func Rewrite(node Node) string {
 		default:
 			log.Panicf("SANITY: ListNode can only be ')' or ']' but was %v!", n.Symbol)
 		}
+	case *BooleanNode:
+		if n.Value {
+			return "#t"
+		} else {
+			return "#f"
+		}
 	case *IdentifierToken:
 		return n.Name
 	// ALL ACCORDING TO ROB PIKE'S VISION
@@ -87,7 +94,7 @@ func RewriteList[T Node](list []T) string {
 	var sb strings.Builder
 	sb.WriteString(Rewrite(list[0]))
 	for _, t := range list[1:] {
-		sb.WriteRune(' ')
+		sb.WriteByte(' ')
 		sb.WriteString(Rewrite(t))
 	}
 	return sb.String()

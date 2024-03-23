@@ -14,7 +14,7 @@
    | <declaration>
    | <annotation>
 
-<template> ::= "template" ":"? *"\n" (<declaration> | <annotation>
+<template> ::= ("template:" | "template")? *"\n" (<declaration> | <annotation>
 
 <declaration> ::=
    <a> (<declaration-generic> | <identifier>) "is" (<sum-type> | <alias>)
@@ -22,7 +22,7 @@
 <declaration-generic> ::=
    | "(" <identifer> <identifer>+ ")"
    | "[" <identifer> <identifer>+ ")"
-<sum-type> ::= "one" "of" <sum-type-element> <sum-type-element>+
+<sum-type> ::= "one" ("of" | "of:") <sum-type-element> <sum-type-element>+
 <sum-type-term> ::= "\n" "-" <type>
 <alias> ::= <not "one" "of"> <a>? <type>
 
@@ -34,6 +34,7 @@
    | <list-type>
    | <identifier>
    | <string>
+   | <boolean>
 <quote> ::= "'" "\n"* <type>
 <function-type> ::= "[" "\n"* <function-type-inside> "\n"* "]"
 <function-inside> ::= <function-generic>? <type>+ "->" "\n"* <type>
@@ -41,3 +42,4 @@
 <list-type> ::=
    | "(" ("\n"* <type>)* "\n"* ")"
    | "[" ("\n"* <type>)* "\n"* "]"
+<boolean> ::= "#" ("t" | "f")

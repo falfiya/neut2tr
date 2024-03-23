@@ -4,7 +4,11 @@ run:
 build:
 	go build -o bin/neut2tr.exe ./cmd
 
-build-wasm: export GOOS=js
-build-wasm: export GOARCH=wasm
-build-wasm:
-	go build -o bin/neut2tr.wasm ./wasm
+.PHONY: examples
+examples: build
+	bin/neut2tr examples/examples.rkt examples/examples.t.rkt
+
+build-web: export GOOS=js
+build-web: export GOARCH=wasm
+build-web:
+	go build -o bin/neut2tr.wasm ./web

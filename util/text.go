@@ -13,3 +13,34 @@ func Reindent(s string, times int) string {
 	}
 	return out
 }
+
+func IsControlCharacter(c byte) bool {
+	return c <= ' ' || c == 127
+}
+
+// preserves tabs and newlines,
+// ignores control characters
+// replaces every other character with space
+func WhitespaceOnly(s string) string {
+	var sb strings.Builder
+	for _, c := range s {
+		if c == '\t' {
+			sb.WriteByte('\t')
+			continue
+		}
+		if c == '\n' {
+			sb.WriteByte('\n')
+			continue
+		}
+		if c == ' ' {
+			sb.WriteByte(' ')
+			continue
+		}
+		if IsControlCharacter(byte(c)) {
+			continue
+		}
+
+		sb.WriteByte(' ')
+	}
+	return sb.String()
+}
