@@ -1,6 +1,6 @@
 # neut2tr
 
-*Northeastern University Type Comments to typed/tacket*
+*Northeastern University Type Comments to typed/racket*
 
 This is a best-effort translator for Northeastern University Type Comments. It
 supports templates, generic declarations, aliases, annotations, sum types, and functions.
