@@ -12,12 +12,12 @@ Download a compiled binary from [the releases tab](https://github.com/falfiya/ne
 ## Usage
 
 ```
-bin\neut2tr.exe filename.rkt
+neut2tr filename.rkt
    Converts NEU Type Comments to typed/racket and prints the result to stdout
 
-bin\neut2tr.exe filename.rkt output.rkt
-bin\neut2tr.exe filename.rkt -o output.rkt
-bin\neut2tr.exe filename.rkt --out output.rkt
+neut2tr filename.rkt output.rkt
+neut2tr filename.rkt -o output.rkt
+neut2tr filename.rkt --out output.rkt
    Converts NEU Type Comments to typed/racket and writes to output.rkt
 ```
 
