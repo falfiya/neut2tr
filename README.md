@@ -8,6 +8,11 @@ supports templates, generic declarations, aliases, annotations, sum types, and f
 ## Install
 
 Download a compiled binary from [the releases tab](https://github.com/falfiya/neut2tr/releases).
+Alternatively, compile it from source:
+
+```shell
+go build .
+```
 
 ## Usage
 
