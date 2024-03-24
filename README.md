@@ -5,6 +5,10 @@
 This is a best-effort translator for Northeastern University Type Comments. It
 supports templates, generic declarations, aliases, annotations, sum types, and functions.
 
+## Install
+
+Download a compiled binary from [the releases tab](https://github.com/falfiya/neut2tr/releases).
+
 ## Usage
 
 ```

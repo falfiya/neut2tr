@@ -1,14 +1,32 @@
 run:
-	go run ./cmd
+	go run .
 
 build:
-	go build -o bin/neut2tr.exe ./cmd
+	go build -o neut2tr.exe .
 
 .PHONY: examples
 examples: build
-	bin/neut2tr examples/examples.rkt examples/examples.t.rkt
+	neut2tr examples/examples.rkt examples/examples.t.rkt
 
-build-web: export GOOS=js
-build-web: export GOARCH=wasm
-build-web:
-	go build -o bin/neut2tr.wasm ./web
+bin: bin-windows-amd64 bin-darwin-arm64 bin-darwin-amd64 bin-linux-amd64
+	-
+
+bin-windows-amd64: export GOOS=windows
+bin-windows-amd64: export GOARCH=amd64
+bin-windows-amd64:
+	go build -o bin/neut2tr-windows-x64.exe
+
+bin-darwin-arm64: export GOOS=darwin
+bin-darwin-arm64: export GOARCH=arm64
+bin-darwin-arm64:
+	go build -o bin/neut2tr-darwin-arm64
+
+bin-darwin-amd64: export GOOS=darwin
+bin-darwin-amd64: export GOARCH=amd64
+bin-darwin-amd64:
+	go build -o bin/neut2tr-darwin-x64
+
+bin-linux-amd64: export GOOS=linux
+bin-linux-amd64: export GOARCH=amd64
+bin-linux-amd64:
+	go build -o bin/neut2tr-linux-x64
